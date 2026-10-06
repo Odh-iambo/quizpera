@@ -3,6 +3,7 @@ using Quizpera.Api.Data;
 using Quizpera.Api.Data.Seed;
 using Quizpera.Api.Validators;
 using Quizpera.Api.Services;
+using Quizpera.Api.Services.Evaluation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,7 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<CreateQuestionRequestValidator>();
 builder.Services.AddScoped<QuestionValidationService>();
 builder.Services.AddOpenApi();
+builder.Services.AddScoped<SingleChoiceEvaluator>();
 
 var app = builder.Build();
 

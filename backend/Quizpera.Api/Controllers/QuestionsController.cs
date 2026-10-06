@@ -5,6 +5,7 @@ using Quizpera.Api.Contracts.Questions;
 using Quizpera.Api.Domain.Questions;
 using Quizpera.Api.Validators;
 using Quizpera.Api.Services;
+using Quizpera.Api.Services.Evaluation;
 
 namespace Quizpera.Api.Controllers;
 
@@ -195,4 +196,32 @@ return CreatedAtAction(
     new { id = question.Id },
     response);
 }
+
+[HttpPost("{id:guid}/evaluate")]
+public async Task<IActionResult> EvaluateAnswer(
+    Guid id,
+    StudentAnswerRequest request,
+    [FromServices] SingleChoiceEvaluator evaluator)
+{
+    if (id != request.QuestionId)
+    {
+        return BadRequest(new
+        {
+            error = "The question ID in the URL does not match the question ID in the request."
+        });
+    }
+
+    var result = await evaluator.EvaluateAsync(request);
+
+    if (result is null)
+    {
+        return BadRequest(new
+        {
+            error = "The selected option does not belong to the specified question."
+        });
+    }
+
+    return Ok(result);
+}
+
 }
