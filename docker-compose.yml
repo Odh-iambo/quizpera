@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: quizpera-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: quizpera
+      POSTGRES_USER: quizpera
+      POSTGRES_PASSWORD: quizpera_dev_password
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - quizpera_postgres_data:/var/lib/postgresql
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quizpera -d quizpera"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  quizpera_postgres_data:
