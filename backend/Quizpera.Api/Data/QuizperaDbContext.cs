@@ -30,6 +30,8 @@ public class QuizperaDbContext : DbContext
 
     public DbSet<ExamQuestion> ExamQuestions => Set<ExamQuestion>();
 
+    public DbSet<ExamSession> ExamSessions => Set<ExamSession>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
     base.OnModelCreating(modelBuilder);

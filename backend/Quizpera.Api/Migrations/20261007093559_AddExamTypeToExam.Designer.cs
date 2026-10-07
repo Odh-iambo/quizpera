@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Quizpera.Api.Data;
@@ -11,9 +12,11 @@ using Quizpera.Api.Data;
 namespace Quizpera.Api.Migrations
 {
     [DbContext(typeof(QuizperaDbContext))]
-    partial class QuizperaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261007093559_AddExamTypeToExam")]
+    partial class AddExamTypeToExam
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -108,31 +111,6 @@ namespace Quizpera.Api.Migrations
                     b.HasIndex("QuestionId");
 
                     b.ToTable("ExamQuestions");
-                });
-
-            modelBuilder.Entity("Quizpera.Api.Domain.Questions.ExamSession", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("ExamId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("StartedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExamId");
-
-                    b.ToTable("ExamSessions");
                 });
 
             modelBuilder.Entity("Quizpera.Api.Domain.Questions.Question", b =>
@@ -291,17 +269,6 @@ namespace Quizpera.Api.Migrations
                     b.Navigation("Question");
                 });
 
-            modelBuilder.Entity("Quizpera.Api.Domain.Questions.ExamSession", b =>
-                {
-                    b.HasOne("Quizpera.Api.Domain.Questions.Exam", "Exam")
-                        .WithMany("ExamSessions")
-                        .HasForeignKey("ExamId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Exam");
-                });
-
             modelBuilder.Entity("Quizpera.Api.Domain.Questions.Question", b =>
                 {
                     b.HasOne("Quizpera.Api.Domain.Questions.ClientNeed", "ClientNeed")
@@ -389,8 +356,6 @@ namespace Quizpera.Api.Migrations
             modelBuilder.Entity("Quizpera.Api.Domain.Questions.Exam", b =>
                 {
                     b.Navigation("ExamQuestions");
-
-                    b.Navigation("ExamSessions");
                 });
 
             modelBuilder.Entity("Quizpera.Api.Domain.Questions.ExamProgram", b =>

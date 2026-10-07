@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Quizpera.Api.Contracts.Questions;
 using Quizpera.Api.Data;
+using Quizpera.Api.Domain.Questions;
 
 namespace Quizpera.Api.Services.Evaluation;
 
-public class SingleChoiceEvaluator
+public class SingleChoiceEvaluator : IQuestionEvaluator
 {
     private readonly QuizperaDbContext _db;
 
@@ -12,6 +13,8 @@ public class SingleChoiceEvaluator
     {
         _db = db;
     }
+
+    public QuestionType SupportedType => QuestionType.SingleChoice;
 
     public async Task<QuestionEvaluationResult?> EvaluateAsync(
         StudentAnswerRequest request)

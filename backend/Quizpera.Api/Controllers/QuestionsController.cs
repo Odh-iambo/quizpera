@@ -201,7 +201,7 @@ return CreatedAtAction(
 public async Task<IActionResult> EvaluateAnswer(
     Guid id,
     StudentAnswerRequest request,
-    [FromServices] SingleChoiceEvaluator evaluator)
+    [FromServices] QuestionEvaluationService evaluationService)
 {
     if (id != request.QuestionId)
     {
@@ -211,7 +211,20 @@ public async Task<IActionResult> EvaluateAnswer(
         });
     }
 
-    var result = await evaluator.EvaluateAsync(request);
+    var question = await _db.Questions
+    .FirstOrDefaultAsync(q => q.Id == id);
+
+if (question is null)
+{
+    return NotFound(new
+    {
+        error = "The specified question was not found."
+    });
+}
+
+    var result = await evaluationService.EvaluateAsync(
+        request,
+        question.Type);
 
     if (result is null)
     {

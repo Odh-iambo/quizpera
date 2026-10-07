@@ -13,11 +13,23 @@ builder.Services.AddDbContext<QuizperaDbContext>(options =>
     )
 );
 
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
+    
 builder.Services.AddScoped<CreateQuestionRequestValidator>();
 builder.Services.AddScoped<QuestionValidationService>();
 builder.Services.AddOpenApi();
-builder.Services.AddScoped<SingleChoiceEvaluator>();
+
+builder.Services.AddScoped<CreateQuestionRequestValidator>();
+builder.Services.AddScoped<QuestionValidationService>();
+
+builder.Services.AddScoped<IQuestionEvaluator, SingleChoiceEvaluator>();
+builder.Services.AddScoped<QuestionEvaluationService>();
 
 var app = builder.Build();
 
