@@ -4,6 +4,7 @@ using Quizpera.Api.Contracts.Exams;
 using Quizpera.Api.Data;
 using Quizpera.Api.Domain.Questions;
 using Quizpera.Api.Contracts.Questions;
+using Quizpera.Api.Services;
 
 namespace Quizpera.Api.Controllers;
 
@@ -92,10 +93,18 @@ public async Task<IActionResult> AddQuestionToExam(
         });
     }
 
+    var nextDisplayOrder = await _db.ExamQuestions
+        .Where(eq => eq.ExamId == examId)
+        .Select(eq => (int?)eq.DisplayOrder)
+        .MaxAsync() ?? 0;
+
+    nextDisplayOrder++;
+
     var examQuestion = new ExamQuestion
     {
         ExamId = examId,
-        QuestionId = request.QuestionId
+        QuestionId = request.QuestionId,
+        DisplayOrder = nextDisplayOrder
     };
 
     _db.ExamQuestions.Add(examQuestion);
@@ -104,8 +113,9 @@ public async Task<IActionResult> AddQuestionToExam(
 
     return Ok(new
     {
-        examId,
-        questionId = request.QuestionId
+        examQuestion.ExamId,
+        examQuestion.QuestionId,
+        examQuestion.DisplayOrder
     });
 }
 
@@ -239,6 +249,171 @@ public async Task<IActionResult> GetExamSession(Guid sessionId)
     }
 
     return Ok(session);
+}
+
+[HttpPost("sessions/{sessionId:guid}/responses")]
+public async Task<IActionResult> SubmitAnswer(
+    Guid sessionId,
+    SubmitExamAnswerRequest request,
+    [FromServices] ExamSessionResponseService responseService)
+{
+    try
+    {
+        var response = await responseService.SubmitAnswerAsync(
+            sessionId,
+            request);
+
+        if (response is null)
+        {
+            return NotFound(new
+            {
+                error = "The specified exam session was not found."
+            });
+        }
+
+        return Ok(new
+        {
+            response.Id,
+            response.ExamSessionId,
+            response.QuestionId,
+            response.SelectedOptionId,
+            response.IsCorrect,
+            response.AnsweredAt
+        });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new
+        {
+            error = ex.Message
+        });
+    }
+}
+
+[HttpPost("sessions/{sessionId:guid}/complete")]
+public async Task<IActionResult> CompleteSession(
+    Guid sessionId,
+    [FromServices] ExamSessionResponseService responseService)
+{
+    try
+    {
+        var session = await responseService.CompleteSessionAsync(sessionId);
+
+        if (session is null)
+        {
+            return NotFound(new
+            {
+                error = "The specified exam session was not found."
+            });
+        }
+
+        return Ok(new CompleteExamSessionResponse
+        {
+            SessionId = session.Id,
+            Status = session.Status.ToString(),
+            CompletedAt = session.CompletedAt!.Value
+        });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new
+        {
+            error = ex.Message
+        });
+    }
+}
+
+[HttpGet("sessions/{sessionId:guid}/result")]
+public async Task<IActionResult> GetSessionResult(
+    Guid sessionId,
+    [FromServices] ExamSessionResultService resultService)
+{
+    var result = await resultService.GetResultAsync(sessionId);
+
+    if (result is null)
+    {
+        return NotFound(new
+        {
+            error = "The specified exam session was not found."
+        });
+    }
+
+    return Ok(result);
+}
+
+[HttpGet("sessions/{sessionId:guid}/review")]
+public async Task<IActionResult> GetSessionReview(
+    Guid sessionId,
+    [FromServices] ExamSessionReviewService reviewService)
+{
+    try
+    {
+        var review = await reviewService.GetReviewAsync(sessionId);
+
+        if (review is null)
+        {
+            return NotFound(new
+            {
+                error = "The specified exam session was not found."
+            });
+        }
+
+        return Ok(review);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new
+        {
+            error = ex.Message
+        });
+    }
+}
+
+[HttpGet("sessions/{sessionId:guid}/progress")]
+public async Task<IActionResult> GetSessionProgress(
+    Guid sessionId,
+    [FromServices] ExamSessionProgressService progressService)
+{
+    var progress = await progressService.GetProgressAsync(sessionId);
+
+    if (progress is null)
+    {
+        return NotFound(new
+        {
+            error = "The specified exam session was not found."
+        });
+    }
+
+    return Ok(progress);
+}
+
+
+[HttpGet("sessions/{sessionId:guid}/questions")]
+public async Task<IActionResult> GetSessionQuestions(
+    Guid sessionId,
+    [FromServices] ExamSessionQuestionService questionService)
+{
+    try
+    {
+        var questions = await questionService.GetQuestionsAsync(sessionId);
+
+        if (questions is null)
+        {
+            return NotFound(new
+            {
+                error = "The specified exam session was not found."
+            });
+        }
+
+        return Ok(questions);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new
+        {
+            error = ex.Message
+        });
+    }
 }
 
 }

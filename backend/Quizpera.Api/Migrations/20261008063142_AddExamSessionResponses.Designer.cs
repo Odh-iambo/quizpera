@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Quizpera.Api.Data;
@@ -11,9 +12,11 @@ using Quizpera.Api.Data;
 namespace Quizpera.Api.Migrations
 {
     [DbContext(typeof(QuizperaDbContext))]
-    partial class QuizperaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261008063142_AddExamSessionResponses")]
+    partial class AddExamSessionResponses
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -103,9 +106,6 @@ namespace Quizpera.Api.Migrations
                     b.Property<Guid>("QuestionId")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer");
-
                     b.HasKey("ExamId", "QuestionId");
 
                     b.HasIndex("QuestionId");
@@ -161,12 +161,11 @@ namespace Quizpera.Api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ExamSessionId");
+
                     b.HasIndex("QuestionId");
 
                     b.HasIndex("SelectedOptionId");
-
-                    b.HasIndex("ExamSessionId", "QuestionId")
-                        .IsUnique();
 
                     b.ToTable("ExamSessionResponses");
                 });

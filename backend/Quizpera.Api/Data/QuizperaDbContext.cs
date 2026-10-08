@@ -32,12 +32,37 @@ public class QuizperaDbContext : DbContext
 
     public DbSet<ExamSession> ExamSessions => Set<ExamSession>();
 
+    public DbSet<ExamSessionResponse> ExamSessionResponses => Set<ExamSessionResponse>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
     base.OnModelCreating(modelBuilder);
 
     modelBuilder.Entity<ExamQuestion>()
         .HasKey(eq => new { eq.ExamId, eq.QuestionId });
+
+        modelBuilder.Entity<ExamSessionResponse>()
+    .HasOne(r => r.ExamSession)
+    .WithMany()
+    .HasForeignKey(r => r.ExamSessionId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+modelBuilder.Entity<ExamSessionResponse>()
+    .HasOne(r => r.Question)
+    .WithMany()
+    .HasForeignKey(r => r.QuestionId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+modelBuilder.Entity<ExamSessionResponse>()
+    .HasOne(r => r.SelectedOption)
+    .WithMany()
+    .HasForeignKey(r => r.SelectedOptionId)
+    .OnDelete(DeleteBehavior.Restrict);
+    
+    modelBuilder.Entity<ExamSessionResponse>()
+    .HasIndex(r => new { r.ExamSessionId, r.QuestionId })
+    .IsUnique();
+
 }
 
 }

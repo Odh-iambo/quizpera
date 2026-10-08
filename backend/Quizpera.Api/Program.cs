@@ -31,6 +31,12 @@ builder.Services.AddScoped<QuestionValidationService>();
 builder.Services.AddScoped<IQuestionEvaluator, SingleChoiceEvaluator>();
 builder.Services.AddScoped<QuestionEvaluationService>();
 
+builder.Services.AddScoped<ExamSessionResponseService>(); 
+builder.Services.AddScoped<ExamSessionResultService>();
+builder.Services.AddScoped<ExamSessionReviewService>();
+builder.Services.AddScoped<ExamSessionProgressService>();
+builder.Services.AddScoped<ExamSessionQuestionService>();
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())

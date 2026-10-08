@@ -9,4 +9,10 @@ public class ExamQuestion
     public Guid QuestionId { get; set; }
 
     public Question Question { get; set; } = null!;
+
+    public int DisplayOrder { get; set; }
+
+    
 }
+
+
