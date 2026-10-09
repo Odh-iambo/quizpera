@@ -56,7 +56,10 @@ public class ExamSessionResultService
             CorrectAnswers = correctAnswers,
             IncorrectAnswers = incorrectAnswers,
             UnansweredQuestions = unansweredQuestions,
-            ScorePercentage = scorePercentage
+            ScorePercentage = scorePercentage,
+        
+
+            
         };
     }
 }

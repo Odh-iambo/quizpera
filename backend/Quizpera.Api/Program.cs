@@ -36,6 +36,11 @@ builder.Services.AddScoped<ExamSessionResultService>();
 builder.Services.AddScoped<ExamSessionReviewService>();
 builder.Services.AddScoped<ExamSessionProgressService>();
 builder.Services.AddScoped<ExamSessionQuestionService>();
+builder.Services.AddScoped<ExamSessionNavigationService>();
+builder.Services.AddScoped<ExamSessionQuestionStatusService>();
+builder.Services.AddScoped<ExamSessionQuestionFlagService>();
+builder.Services.AddScoped<ExamSessionSubmissionReviewService>();
+
 
 var app = builder.Build();
 

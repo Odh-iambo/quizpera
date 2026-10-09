@@ -416,4 +416,183 @@ public async Task<IActionResult> GetSessionQuestions(
     }
 }
 
+[HttpGet("sessions/{sessionId:guid}/questions/{position:int}")]
+public async Task<IActionResult> GetSessionQuestion(
+    Guid sessionId,
+    int position,
+    [FromServices] ExamSessionNavigationService navigationService)
+{
+    try
+    {
+        var result = await navigationService.GetQuestionAsync(
+            sessionId,
+            position);
+
+        if (result is null)
+        {
+            return NotFound(new
+            {
+                error = "The specified exam session was not found."
+            });
+        }
+
+        return Ok(result);
+    }
+    catch (ArgumentOutOfRangeException ex)
+    {
+        return BadRequest(new
+        {
+            error = ex.Message
+        });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new
+        {
+            error = ex.Message
+        });
+    }
+}
+
+[HttpGet("sessions/{sessionId:guid}/question-statuses")]
+public async Task<IActionResult> GetSessionQuestionStatuses(
+    Guid sessionId,
+    [FromServices] ExamSessionQuestionStatusService statusService)
+{
+    try
+    {
+        var statuses = await statusService.GetQuestionStatusesAsync(sessionId);
+
+        if (statuses is null)
+        {
+            return NotFound(new
+            {
+                error = "The specified exam session was not found."
+            });
+        }
+
+        return Ok(statuses);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new
+        {
+            error = ex.Message
+        });
+    }
+}
+
+[HttpPut("sessions/{sessionId:guid}/questions/{questionId:guid}/flag")]
+public async Task<IActionResult> FlagQuestion(
+    Guid sessionId,
+    Guid questionId,
+    [FromServices] ExamSessionQuestionFlagService flagService)
+{
+    try
+    {
+        var created = await flagService.FlagQuestionAsync(
+            sessionId,
+            questionId);
+
+        return Ok(new
+        {
+            sessionId,
+            questionId,
+            isFlagged = true,
+            created
+        });
+    }
+    catch (KeyNotFoundException ex)
+    {
+        return NotFound(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new { error = ex.Message });
+    }
+}
+
+[HttpDelete("sessions/{sessionId:guid}/questions/{questionId:guid}/flag")]
+public async Task<IActionResult> UnflagQuestion(
+    Guid sessionId,
+    Guid questionId,
+    [FromServices] ExamSessionQuestionFlagService flagService)
+{
+    try
+    {
+        await flagService.UnflagQuestionAsync(
+            sessionId,
+            questionId);
+
+        return Ok(new
+        {
+            sessionId,
+            questionId,
+            isFlagged = false
+        });
+    }
+    catch (KeyNotFoundException ex)
+    {
+        return NotFound(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new { error = ex.Message });
+    }
+}
+
+[HttpGet("sessions/{sessionId:guid}/flagged-questions")]
+public async Task<IActionResult> GetFlaggedQuestions(
+    Guid sessionId,
+    [FromServices] ExamSessionQuestionFlagService flagService)
+{
+    try
+    {
+        var flaggedQuestions = await flagService.GetFlaggedQuestionsAsync(
+            sessionId);
+
+        if (flaggedQuestions is null)
+        {
+            return NotFound(new
+            {
+                error = "The specified exam session was not found."
+            });
+        }
+
+        return Ok(flaggedQuestions);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new { error = ex.Message });
+    }
+}
+
+[HttpGet("sessions/{sessionId:guid}/submission-review")]
+public async Task<IActionResult> GetSubmissionReview(
+    Guid sessionId,
+    [FromServices] ExamSessionSubmissionReviewService reviewService)
+{
+    try
+    {
+        var review = await reviewService.GetReviewAsync(sessionId);
+
+        if (review is null)
+        {
+            return NotFound(new
+            {
+                error = "The specified exam session was not found."
+            });
+        }
+
+        return Ok(review);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new
+        {
+            error = ex.Message
+        });
+    }
+}
+
 }
