@@ -39,11 +39,11 @@ public class ExamSessionResultService
 
         decimal? scorePercentage = null;
 
-        if (answeredQuestions > 0)
+        if (answeredQuestions > 0 && totalQuestions > 0)
         {
             scorePercentage =
                 Math.Round(
-                    (decimal)correctAnswers / answeredQuestions * 100,
+                    (decimal)correctAnswers / totalQuestions * 100,
                     2);
         }
 
