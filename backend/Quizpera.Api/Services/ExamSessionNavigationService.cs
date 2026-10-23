@@ -62,9 +62,9 @@ public class ExamSessionNavigationService
                 eq.Question.Stem,
                 eq.Question.Difficulty,
 
-        IsAnswered = _db.ExamSessionResponses.Any(r =>
-    r.ExamSessionId == sessionId &&
-    r.QuestionId == eq.QuestionId),
+                IsAnswered = _db.ExamSessionResponses.Any(r =>
+            r.ExamSessionId == sessionId &&
+            r.QuestionId == eq.QuestionId),
 
                 Options = eq.Question.Options
                     .OrderBy(o => o.DisplayOrder)

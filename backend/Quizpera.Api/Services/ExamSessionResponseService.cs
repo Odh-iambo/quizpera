@@ -20,12 +20,15 @@ public class ExamSessionResponseService
     }
 
     public async Task<ExamSessionResponse?> SubmitAnswerAsync(
-        Guid sessionId,
-        SubmitExamAnswerRequest request)
+    Guid sessionId,
+    string userId,
+    SubmitExamAnswerRequest request)
     {
         var session = await _db.ExamSessions
-            .Include(s => s.Exam)
-            .FirstOrDefaultAsync(s => s.Id == sessionId);
+    .Include(s => s.Exam)
+    .FirstOrDefaultAsync(s =>
+        s.Id == sessionId &&
+        s.UserId == userId);
 
         if (session is null)
         {
@@ -103,27 +106,31 @@ public class ExamSessionResponseService
         return response;
     }
 
-    public async Task<ExamSession?> CompleteSessionAsync(Guid sessionId)
-{
-    var session = await _db.ExamSessions
-        .FirstOrDefaultAsync(s => s.Id == sessionId);
-
-    if (session is null)
+    public async Task<ExamSession?> CompleteSessionAsync(
+     Guid sessionId,
+     string userId)
     {
-        return null;
+        var session = await _db.ExamSessions
+            .FirstOrDefaultAsync(s =>
+                s.Id == sessionId &&
+                s.UserId == userId);
+
+        if (session is null)
+        {
+            return null;
+        }
+
+        if (session.Status != ExamSessionStatus.InProgress)
+        {
+            throw new InvalidOperationException(
+                "Only an exam session that is in progress can be completed.");
+        }
+
+        session.Status = ExamSessionStatus.Completed;
+        session.CompletedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        return session;
     }
-
-    if (session.Status != ExamSessionStatus.InProgress)
-    {
-        throw new InvalidOperationException(
-            "Only an exam session that is in progress can be completed.");
-    }
-
-    session.Status = ExamSessionStatus.Completed;
-    session.CompletedAt = DateTime.UtcNow;
-
-    await _db.SaveChangesAsync();
-
-    return session;
-}
 }

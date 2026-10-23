@@ -2,6 +2,7 @@ using Quizpera.Api.Contracts.ExamPrograms;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Quizpera.Api.Data;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Quizpera.Api.Controllers;
 
@@ -29,49 +30,50 @@ public class ExamProgramsController : ControllerBase
 
         return Ok(examPrograms);
     }
-    
+
+    [Authorize(Roles = "Admin,SuperAdmin")]
     [HttpPost]
-public async Task<IActionResult> CreateExamProgram(
+    public async Task<IActionResult> CreateExamProgram(
     CreateExamProgramRequest request)
-{
-    if (string.IsNullOrWhiteSpace(request.Name))
     {
-        return BadRequest(new
+        if (string.IsNullOrWhiteSpace(request.Name))
         {
-            error = "Exam program name is required."
-        });
+            return BadRequest(new
+            {
+                error = "Exam program name is required."
+            });
+        }
+
+        var normalizedName = request.Name.Trim();
+
+        var exists = await _db.ExamPrograms
+            .AnyAsync(p => p.Name.ToLower() == normalizedName.ToLower());
+
+        if (exists)
+        {
+            return Conflict(new
+            {
+                error = "An exam program with this name already exists."
+            });
+        }
+
+        var examProgram = new Domain.Questions.ExamProgram
+        {
+            Id = Guid.NewGuid(),
+            Name = normalizedName
+        };
+
+        _db.ExamPrograms.Add(examProgram);
+
+        await _db.SaveChangesAsync();
+
+        return CreatedAtAction(
+            nameof(GetExamPrograms),
+            new { id = examProgram.Id },
+            new
+            {
+                examProgram.Id,
+                examProgram.Name
+            });
     }
-
-    var normalizedName = request.Name.Trim();
-
-    var exists = await _db.ExamPrograms
-        .AnyAsync(p => p.Name.ToLower() == normalizedName.ToLower());
-
-    if (exists)
-    {
-        return Conflict(new
-        {
-            error = "An exam program with this name already exists."
-        });
-    }
-
-    var examProgram = new Domain.Questions.ExamProgram
-    {
-        Id = Guid.NewGuid(),
-        Name = normalizedName
-    };
-
-    _db.ExamPrograms.Add(examProgram);
-
-    await _db.SaveChangesAsync();
-
-    return CreatedAtAction(
-        nameof(GetExamPrograms),
-        new { id = examProgram.Id },
-        new
-        {
-            examProgram.Id,
-            examProgram.Name
-        });
-}
 }

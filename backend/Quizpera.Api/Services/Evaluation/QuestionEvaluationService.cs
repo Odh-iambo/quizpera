@@ -13,18 +13,18 @@ public class QuestionEvaluationService
         _evaluators = evaluators;
     }
 
-   public async Task<QuestionEvaluationResult?> EvaluateAsync(
-    StudentAnswerRequest request,
-    QuestionType questionType)
-{
-    var evaluator = _evaluators
-        .FirstOrDefault(e => e.SupportedType == questionType);
-
-    if (evaluator is null)
+    public async Task<QuestionEvaluationResult?> EvaluateAsync(
+     StudentAnswerRequest request,
+     QuestionType questionType)
     {
-        return null;
-    }
+        var evaluator = _evaluators
+            .FirstOrDefault(e => e.SupportedType == questionType);
 
-    return await evaluator.EvaluateAsync(request);
-}
+        if (evaluator is null)
+        {
+            return null;
+        }
+
+        return await evaluator.EvaluateAsync(request);
+    }
 }

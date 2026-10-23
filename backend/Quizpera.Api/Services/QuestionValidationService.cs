@@ -21,16 +21,16 @@ public class QuestionValidationService
         var domain = await _db.Domains
     .FirstOrDefaultAsync(d => d.Id == request.DomainId);
 
-if (domain is null)
-{
-    errors["domainId"] =
-    ["The selected domain does not exist."];
-}
-else if (domain.ExamProgramId != request.ExamProgramId)
-{
-    errors["domainId"] =
-    ["The selected domain does not belong to the selected exam program."];
-}
+        if (domain is null)
+        {
+            errors["domainId"] =
+            ["The selected domain does not exist."];
+        }
+        else if (domain.ExamProgramId != request.ExamProgramId)
+        {
+            errors["domainId"] =
+            ["The selected domain does not belong to the selected exam program."];
+        }
 
         var domainExists = await _db.Domains
             .AnyAsync(d => d.Id == request.DomainId);

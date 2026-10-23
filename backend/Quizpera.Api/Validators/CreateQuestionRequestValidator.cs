@@ -16,15 +16,15 @@ public class CreateQuestionRequestValidator
 
         if (request.Type == QuestionType.SingleChoice &&
     request.Options is not null)
-{
-    var correctOptionCount = request.Options.Count(option => option.IsCorrect);
+        {
+            var correctOptionCount = request.Options.Count(option => option.IsCorrect);
 
-    if (correctOptionCount != 1)
-    {
-        errors["options"] =
-        ["A single-choice question must have exactly one correct option."];
-    }
-}
+            if (correctOptionCount != 1)
+            {
+                errors["options"] =
+                ["A single-choice question must have exactly one correct option."];
+            }
+        }
 
         if (request.Options is null || request.Options.Count < 2)
         {

@@ -10,41 +10,41 @@ namespace Quizpera.Api.Migrations
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
-{
-    migrationBuilder.AddColumn<Guid>(
-        name: "ExamProgramId",
-        table: "Domains",
-        type: "uuid",
-        nullable: true);
+        {
+            migrationBuilder.AddColumn<Guid>(
+                name: "ExamProgramId",
+                table: "Domains",
+                type: "uuid",
+                nullable: true);
 
-    migrationBuilder.Sql("""
+            migrationBuilder.Sql("""
         UPDATE "Domains"
         SET "ExamProgramId" = '77bbbd1d-4217-4e8d-adaf-2fe446ab9181'
         WHERE "Name" = 'Adult Health';
         """);
 
-    migrationBuilder.AlterColumn<Guid>(
-        name: "ExamProgramId",
-        table: "Domains",
-        type: "uuid",
-        nullable: false,
-        oldClrType: typeof(Guid),
-        oldType: "uuid",
-        oldNullable: true);
+            migrationBuilder.AlterColumn<Guid>(
+                name: "ExamProgramId",
+                table: "Domains",
+                type: "uuid",
+                nullable: false,
+                oldClrType: typeof(Guid),
+                oldType: "uuid",
+                oldNullable: true);
 
-    migrationBuilder.CreateIndex(
-        name: "IX_Domains_ExamProgramId",
-        table: "Domains",
-        column: "ExamProgramId");
+            migrationBuilder.CreateIndex(
+                name: "IX_Domains_ExamProgramId",
+                table: "Domains",
+                column: "ExamProgramId");
 
-    migrationBuilder.AddForeignKey(
-        name: "FK_Domains_ExamPrograms_ExamProgramId",
-        table: "Domains",
-        column: "ExamProgramId",
-        principalTable: "ExamPrograms",
-        principalColumn: "Id",
-        onDelete: ReferentialAction.Cascade);
-}
+            migrationBuilder.AddForeignKey(
+                name: "FK_Domains_ExamPrograms_ExamProgramId",
+                table: "Domains",
+                column: "ExamProgramId",
+                principalTable: "ExamPrograms",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+        }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)

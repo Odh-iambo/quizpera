@@ -1,11 +1,14 @@
+
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Quizpera.Api.Domain.Auth;
 using Quizpera.Api.Domain.Questions;
 using QuestionDomain = Quizpera.Api.Domain.Questions.Domain;
 
 namespace Quizpera.Api.Data;
 
 
-public class QuizperaDbContext : DbContext
+public class QuizperaDbContext : IdentityDbContext<ApplicationUser>
 {
     public QuizperaDbContext(DbContextOptions<QuizperaDbContext> options)
         : base(options)
@@ -38,11 +41,18 @@ public class QuizperaDbContext : DbContext
     => Set<ExamSessionQuestionFlag>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
-{
-    base.OnModelCreating(modelBuilder);
+    {
+        base.OnModelCreating(modelBuilder);
 
-    modelBuilder.Entity<ExamQuestion>()
-        .HasKey(eq => new { eq.ExamId, eq.QuestionId });
+
+        modelBuilder.Entity<ExamSession>()
+        .HasOne(s => s.User)
+        .WithMany()
+        .HasForeignKey(s => s.UserId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ExamQuestion>()
+            .HasKey(eq => new { eq.ExamId, eq.QuestionId });
 
         modelBuilder.Entity<ExamSessionResponse>()
     .HasOne(r => r.ExamSession)
@@ -50,37 +60,37 @@ public class QuizperaDbContext : DbContext
     .HasForeignKey(r => r.ExamSessionId)
     .OnDelete(DeleteBehavior.Cascade);
 
-modelBuilder.Entity<ExamSessionResponse>()
-    .HasOne(r => r.Question)
-    .WithMany()
-    .HasForeignKey(r => r.QuestionId)
-    .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ExamSessionResponse>()
+            .HasOne(r => r.Question)
+            .WithMany()
+            .HasForeignKey(r => r.QuestionId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-modelBuilder.Entity<ExamSessionResponse>()
-    .HasOne(r => r.SelectedOption)
-    .WithMany()
-    .HasForeignKey(r => r.SelectedOptionId)
-    .OnDelete(DeleteBehavior.Restrict);
-    
-    modelBuilder.Entity<ExamSessionResponse>()
-    .HasIndex(r => new { r.ExamSessionId, r.QuestionId })
-    .IsUnique();
+        modelBuilder.Entity<ExamSessionResponse>()
+            .HasOne(r => r.SelectedOption)
+            .WithMany()
+            .HasForeignKey(r => r.SelectedOptionId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-    modelBuilder.Entity<ExamSessionQuestionFlag>()
-    .HasKey(f => new { f.ExamSessionId, f.QuestionId });
+        modelBuilder.Entity<ExamSessionResponse>()
+        .HasIndex(r => new { r.ExamSessionId, r.QuestionId })
+        .IsUnique();
 
-    modelBuilder.Entity<ExamSessionQuestionFlag>()
-    .HasOne(f => f.ExamSession)
-    .WithMany()
-    .HasForeignKey(f => f.ExamSessionId)
-    .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ExamSessionQuestionFlag>()
+        .HasKey(f => new { f.ExamSessionId, f.QuestionId });
 
-modelBuilder.Entity<ExamSessionQuestionFlag>()
-    .HasOne(f => f.Question)
-    .WithMany()
-    .HasForeignKey(f => f.QuestionId)
-    .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ExamSessionQuestionFlag>()
+        .HasOne(f => f.ExamSession)
+        .WithMany()
+        .HasForeignKey(f => f.ExamSessionId)
+        .OnDelete(DeleteBehavior.Cascade);
 
-}
+        modelBuilder.Entity<ExamSessionQuestionFlag>()
+            .HasOne(f => f.Question)
+            .WithMany()
+            .HasForeignKey(f => f.QuestionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+    }
 
 }

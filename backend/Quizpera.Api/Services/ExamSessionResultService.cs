@@ -15,12 +15,13 @@ public class ExamSessionResultService
     }
 
     public async Task<ExamSessionResultResponse?> GetResultAsync(
-        Guid sessionId)
+     Guid sessionId)
     {
         var session = await _db.ExamSessions
             .FirstOrDefaultAsync(s => s.Id == sessionId);
 
-        if (session is null)
+        if (session is null ||
+            session.Status != ExamSessionStatus.Completed)
         {
             return null;
         }
@@ -31,7 +32,6 @@ public class ExamSessionResultService
         var responses = await _db.ExamSessionResponses
             .Where(r => r.ExamSessionId == sessionId)
             .ToListAsync();
-
         var answeredQuestions = responses.Count;
         var correctAnswers = responses.Count(r => r.IsCorrect);
         var incorrectAnswers = answeredQuestions - correctAnswers;
@@ -57,9 +57,9 @@ public class ExamSessionResultService
             IncorrectAnswers = incorrectAnswers,
             UnansweredQuestions = unansweredQuestions,
             ScorePercentage = scorePercentage,
-        
 
-            
+
+
         };
     }
 }

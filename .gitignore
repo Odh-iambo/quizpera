@@ -24,3 +24,5 @@
 # OS files
 .DS_Store
 Thumbs.db
+# Quizpera authentication cookies
+*cookies*.txt

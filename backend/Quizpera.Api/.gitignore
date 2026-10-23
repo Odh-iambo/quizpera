@@ -1,0 +1,11 @@
+
+# Quizpera authentication cookies
+*cookies*.txt
+
+# .NET build artifacts
+bin/
+obj/
+
+# IDE files
+.vs/
+.idea/
