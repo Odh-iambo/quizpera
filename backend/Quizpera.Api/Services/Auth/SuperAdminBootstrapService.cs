@@ -67,42 +67,49 @@ public sealed class SuperAdminBootstrapService
                 "A SuperAdmin already exists. Bootstrap refused.");
         }
 
-        var user = await _userManager.FindByEmailAsync(email);
+        // Never promote an existing account through bootstrap.
+        var existingUser =
+            await _userManager.FindByEmailAsync(email);
 
-        if (user is null)
+        if (existingUser is not null)
         {
-            user = new ApplicationUser
-            {
-                UserName = email,
-                Email = email,
-                EmailConfirmed = false
-            };
-
-            var createResult = await _userManager.CreateAsync(
-                user,
-                password);
-
-            if (!createResult.Succeeded)
-            {
-                var errors = string.Join(
-                    "; ",
-                    createResult.Errors.Select(error =>
-                        $"{error.Code}: {error.Description}"));
-
-                throw new InvalidOperationException(
-                    $"SuperAdmin account creation failed: {errors}");
-            }
+            throw new InvalidOperationException(
+                "A SuperAdmin bootstrap account already exists. " +
+                "Refusing to promote an existing account.");
         }
 
-        var assignResult = await _userManager.AddToRoleAsync(
-            user,
-            "SuperAdmin");
+        // Bootstrap may create a new account only.
+        var newUser = new ApplicationUser
+        {
+            UserName = email,
+            Email = email,
+            EmailConfirmed = false
+        };
 
-        if (!assignResult.Succeeded)
+        var accountCreationResult =
+            await _userManager.CreateAsync(newUser, password);
+
+        if (!accountCreationResult.Succeeded)
         {
             var errors = string.Join(
                 "; ",
-                assignResult.Errors.Select(error =>
+                accountCreationResult.Errors.Select(error =>
+                    $"{error.Code}: {error.Description}"));
+
+            throw new InvalidOperationException(
+                $"SuperAdmin account creation failed: {errors}");
+        }
+
+        var roleAssignmentResult =
+            await _userManager.AddToRoleAsync(
+                newUser,
+                "SuperAdmin");
+
+        if (!roleAssignmentResult.Succeeded)
+        {
+            var errors = string.Join(
+                "; ",
+                roleAssignmentResult.Errors.Select(error =>
                     $"{error.Code}: {error.Description}"));
 
             throw new InvalidOperationException(

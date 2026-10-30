@@ -33,12 +33,28 @@ public class ExamSessionSubmissionReviewService
         }
 
         var examQuestions = await _db.ExamQuestions
-            .AsNoTracking()
-            .Where(eq => eq.ExamId == session.ExamId)
-            .OrderBy(eq => eq.DisplayOrder)
-            .ThenBy(eq => eq.QuestionId)
-            .Select(eq => eq.QuestionId)
-            .ToListAsync();
+    .AsNoTracking()
+    .Where(eq => eq.ExamId == session.ExamId)
+    .OrderBy(eq => eq.DisplayOrder)
+    .ThenBy(eq => eq.QuestionId)
+    .Select(eq => eq.QuestionId)
+    .ToListAsync();
+
+var caseProgressionService = new ClinicalCaseProgressionService(_db);
+
+var accessibleQuestionIds = new List<Guid>();
+
+foreach (var questionId in examQuestions)
+{
+    if (await caseProgressionService.CanAccessQuestionAsync(
+        sessionId,
+        questionId))
+    {
+        accessibleQuestionIds.Add(questionId);
+    }
+}
+
+examQuestions = accessibleQuestionIds;
 
         var answeredQuestionIds = await _db.ExamSessionResponses
             .AsNoTracking()

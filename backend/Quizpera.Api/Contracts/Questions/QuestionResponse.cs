@@ -1,4 +1,5 @@
 using Quizpera.Api.Domain.Questions;
+
 namespace Quizpera.Api.Contracts.Questions;
 
 public class QuestionResponse
@@ -12,6 +13,14 @@ public class QuestionResponse
     public Difficulty Difficulty { get; set; }
 
     public string? Rationale { get; set; }
+
+    public decimal MaximumPoints { get; set; }
+
+    public QuestionScoringMethod ScoringMethod { get; set; }
+
+    public decimal? NumericCorrectAnswer { get; set; }
+
+    public decimal? NumericTolerance { get; set; }
 
     public List<QuestionOptionResponse> Options { get; set; } = [];
 }

@@ -70,7 +70,11 @@ public class QuestionsController : ControllerBase
                 Type = q.Type,
                 Stem = q.Stem,
                 Difficulty = q.Difficulty,
-                Options = q.Options
+                MaximumPoints = q.MaximumPoints,
+                ScoringMethod = q.ScoringMethod,
+                NumericCorrectAnswer = q.NumericCorrectAnswer,
+                NumericTolerance = q.NumericTolerance,
+                   Options = q.Options
                     .OrderBy(o => o.DisplayOrder)
                     .Select(o => new QuestionOptionExamResponse
                     {
@@ -103,6 +107,8 @@ public class QuestionsController : ControllerBase
                 Stem = q.Stem,
                 Difficulty = q.Difficulty,
                 Rationale = q.Rationale,
+                NumericCorrectAnswer = q.NumericCorrectAnswer,
+                NumericTolerance = q.NumericTolerance,
                 Options = q.Options
                     .OrderBy(o => o.DisplayOrder)
                     .Select(o => new QuestionReviewOptionResponse
@@ -151,18 +157,22 @@ public class QuestionsController : ControllerBase
         }
 
         var question = new Question
-        {
-            Id = Guid.NewGuid(),
-            Type = request.Type,
-            Stem = request.Stem,
-            ExamProgramId = request.ExamProgramId,
-            DomainId = request.DomainId,
-            SubjectId = request.SubjectId,
-            TopicId = request.TopicId,
-            ClientNeedId = request.ClientNeedId,
-            Difficulty = request.Difficulty,
-            Rationale = request.Rationale
-        };
+{
+    Id = Guid.NewGuid(),
+    Type = request.Type,
+    Stem = request.Stem,
+    ExamProgramId = request.ExamProgramId,
+    DomainId = request.DomainId,
+    SubjectId = request.SubjectId,
+    TopicId = request.TopicId,
+    ClientNeedId = request.ClientNeedId,
+    Difficulty = request.Difficulty,
+    MaximumPoints = request.MaximumPoints,
+    ScoringMethod = request.ScoringMethod,
+    Rationale = request.Rationale,
+    NumericCorrectAnswer = request.NumericCorrectAnswer,
+    NumericTolerance = request.NumericTolerance
+};
 
         foreach (var option in request.Options)
         {
@@ -186,6 +196,10 @@ public class QuestionsController : ControllerBase
             Stem = question.Stem,
             Difficulty = question.Difficulty,
             Rationale = question.Rationale,
+            MaximumPoints = question.MaximumPoints,
+            ScoringMethod = question.ScoringMethod,
+            NumericCorrectAnswer = question.NumericCorrectAnswer,
+            NumericTolerance = question.NumericTolerance,
             Options = question.Options
                 .OrderBy(o => o.DisplayOrder)
                 .Select(o => new QuestionOptionResponse

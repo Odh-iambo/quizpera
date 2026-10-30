@@ -12,5 +12,7 @@ public class QuestionOption
 
     public int DisplayOrder { get; set; }
 
+    public int? CorrectOrder { get; set; }
+
     public bool IsCorrect { get; set; }
 }

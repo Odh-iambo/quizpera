@@ -14,6 +14,10 @@ public class QuestionReviewResponse
 
     public string? Rationale { get; set; }
 
+    public decimal? NumericCorrectAnswer { get; set; }
+
+    public decimal? NumericTolerance { get; set; }
+
     public List<QuestionReviewOptionResponse> Options { get; set; } = [];
 }
 

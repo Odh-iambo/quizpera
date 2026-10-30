@@ -28,8 +28,12 @@ public class ExamSessionProgressService
         var totalQuestions = await _db.ExamQuestions
             .CountAsync(eq => eq.ExamId == session.ExamId);
 
-        var answeredQuestions = await _db.ExamSessionResponses
-            .CountAsync(r => r.ExamSessionId == sessionId);
+	var answeredQuestions = await _db.ExamSessionResponses
+    .Where(r => r.ExamSessionId == sessionId)
+    .Where(r => _db.ExamQuestions.Any(eq =>
+        eq.ExamId == session.ExamId &&
+        eq.QuestionId == r.QuestionId))
+    .CountAsync();
 
         var unansweredQuestions =
             totalQuestions - answeredQuestions;

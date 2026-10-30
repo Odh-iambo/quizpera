@@ -12,5 +12,14 @@ public class QuestionExamResponse
 
     public Difficulty Difficulty { get; set; }
 
+    public decimal MaximumPoints { get; set; }
+
+    public QuestionScoringMethod ScoringMethod { get; set; }
+
+
+    public decimal? NumericCorrectAnswer { get; set; }
+
+    public decimal? NumericTolerance { get; set; }
+
     public List<QuestionOptionExamResponse> Options { get; set; } = [];
 }

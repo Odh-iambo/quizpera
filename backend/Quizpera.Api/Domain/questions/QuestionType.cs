@@ -2,5 +2,10 @@ namespace Quizpera.Api.Domain.Questions;
 
 public enum QuestionType
 {
-    SingleChoice
+    SingleChoice,
+    MultipleResponse,
+    TrueFalse,
+    OrderedResponse,
+    NumericEntry,
+    MatrixGrid = 5
 }

@@ -20,12 +20,35 @@ public class CreateQuestionRequest
 
     public Difficulty Difficulty { get; set; }
 
+    public decimal MaximumPoints { get; set; } = 1m;
+
+    public QuestionScoringMethod ScoringMethod { get; set; }
+        = QuestionScoringMethod.AllOrNothing;
+
     public string? Rationale { get; set; }
 
+    public decimal? NumericCorrectAnswer { get; set; }
+
+    public decimal? NumericTolerance { get; set; }
+
     public List<CreateQuestionOptionRequest> Options { get; set; } = [];
+
+    public List<CreateQuestionRationaleOptionRequest> RationaleOptions
+        { get; set; } = [];
 }
 
 public class CreateQuestionOptionRequest
+{
+    public string Text { get; set; } = null!;
+
+    public int DisplayOrder { get; set; }
+
+    public int? CorrectOrder { get; set; }
+
+    public bool IsCorrect { get; set; }
+}
+
+public class CreateQuestionRationaleOptionRequest
 {
     public string Text { get; set; } = null!;
 

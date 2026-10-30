@@ -366,9 +366,17 @@ public class ExamsController : ControllerBase
 
         };
 
-        _db.ExamSessions.Add(session);
+      _db.ExamSessions.Add(session);
 
-        await _db.SaveChangesAsync();
+await _db.SaveChangesAsync();
+
+// Initialize clinical-case progression for this exam session.
+var caseProgressionService = new ClinicalCaseProgressionService(_db);
+
+await caseProgressionService.InitializeSessionCasesAsync(
+    session.Id,
+    session.ExamId);
+
 
         var response = new StartExamResponse
 
@@ -452,81 +460,118 @@ public class ExamsController : ControllerBase
 
     }
 
-    [Authorize]
-    [HttpPost("sessions/{sessionId:guid}/responses")]
-
-    public async Task<IActionResult> SubmitAnswer(
-
-        Guid sessionId,
-
-        SubmitExamAnswerRequest request,
-
-        [FromServices] ExamSessionResponseService responseService)
-
+   [Authorize]
+[HttpPost("sessions/{sessionId:guid}/responses")]
+public async Task<IActionResult> SubmitAnswer(
+    Guid sessionId,
+    SubmitExamAnswerRequest request,
+    [FromServices] ExamSessionResponseService responseService)
+{
+    try
     {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-        try
-
+        if (string.IsNullOrWhiteSpace(userId))
         {
+            return Unauthorized();
+        }
 
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var response = await responseService.SubmitAnswerAsync(
+            sessionId,
+            userId,
+            request);
 
-            if (string.IsNullOrWhiteSpace(userId))
-
+        if (response is null)
+        {
+            return NotFound(new
             {
+                error = "The specified exam session was not found."
+            });
+        }
 
-                return Unauthorized();
+        var sessionMode = await _db.ExamSessions
+            .Where(s => s.Id == sessionId && s.UserId == userId)
+            .Select(s => s.Mode)
+            .SingleAsync();
 
-            }
-
-            var response = await responseService.SubmitAnswerAsync(
-
-                sessionId,
-
-                userId,
-
-                request);
-
-            if (response is null)
-
-            {
-
-                return NotFound(new
-
-                {
-
-                    error = "The specified exam session was not found."
-
-                });
-
-            }
-
+        // Ordinary Exam Mode must not expose scoring or correctness.
+        if (sessionMode != ExamSessionMode.Tutored)
+        {
             return Ok(new
             {
                 response.Id,
                 response.ExamSessionId,
                 response.QuestionId,
                 response.SelectedOptionId,
+                response.NumericAnswer,
                 response.AnsweredAt
             });
-
         }
 
-        catch (InvalidOperationException ex)
+        // Load rationale options for tutored feedback.
+        var rationaleOptions = await _db.QuestionRationaleOptions
+            .Where(r => r.QuestionId == response.QuestionId)
+            .OrderBy(r => r.DisplayOrder)
+            .ToListAsync();
 
-        {
+        var selectedRationaleIds = response.SelectedRationaleOptions
+            .Select(r => r.QuestionRationaleOptionId)
+            .ToHashSet();
 
-            return BadRequest(new
-
+        var selectedRationaleOptions = rationaleOptions
+            .Where(r => selectedRationaleIds.Contains(r.Id))
+            .Select(r => new
             {
+                id = r.Id,
+                text = r.Text,
+                isCorrect = r.IsCorrect
+            })
+            .ToList();
 
-                error = ex.Message
+        var correctRationaleOptions = rationaleOptions
+            .Where(r => r.IsCorrect)
+            .Select(r => new
+            {
+                id = r.Id,
+                text = r.Text,
+                displayOrder = r.DisplayOrder,
+                isCorrect = r.IsCorrect
+            })
+            .ToList();
 
-            });
+        var questionRationale = await _db.Questions
+            .Where(q => q.Id == response.QuestionId)
+            .Select(q => q.Rationale)
+            .SingleAsync();
 
-        }
+        return Ok(new
+        {
+            response.Id,
+            response.ExamSessionId,
+            response.QuestionId,
+            response.SelectedOptionId,
+            response.NumericAnswer,
+            response.AnsweredAt,
 
+            feedback = new
+            {
+                isCorrect = response.IsCorrect,
+                pointsEarned = response.PointsEarned,
+                maximumPoints = response.MaximumPoints,
+                rationale = questionRationale,
+                selectedRationaleOptions,
+                correctRationaleOptions
+            }
+        });
     }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new
+        {
+            error = ex.Message
+        });
+    }
+}
 
     [Authorize]
     [HttpPost("sessions/{sessionId:guid}/complete")]
@@ -1300,5 +1345,55 @@ public class ExamsController : ControllerBase
         }
 
     }
+
+
+    [Authorize]
+[HttpGet("sessions/{sessionId:guid}/cases/{caseId:guid}/current-stage")]
+public async Task<IActionResult> GetCurrentClinicalCaseStage(
+    Guid sessionId,
+    Guid caseId,
+    [FromServices] ExamSessionOwnershipService ownershipService)
+{
+    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+    if (string.IsNullOrWhiteSpace(userId))
+    {
+        return Unauthorized();
+    }
+
+    if (!await ownershipService.IsOwnerAsync(sessionId, userId))
+    {
+        return NotFound(new
+        {
+            error = "The specified exam session was not found."
+        });
+    }
+
+    try
+    {
+        var caseProgressionService = new ClinicalCaseProgressionService(_db);
+
+        var currentStage = await caseProgressionService.GetCurrentStageAsync(
+            sessionId,
+            caseId);
+
+        if (currentStage is null)
+        {
+            return NotFound(new
+            {
+                error = "The clinical case or its current stage was not found."
+            });
+        }
+
+        return Ok(currentStage);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new
+        {
+            error = ex.Message
+        });
+    }
+}
 
 }

@@ -8,4 +8,7 @@ public class ExamProgram
 
     public ICollection<Question> Questions { get; set; }
         = new List<Question>();
+
+    public ICollection<ClinicalCase> ClinicalCases { get; set; }
+    = new List<ClinicalCase>();
 }

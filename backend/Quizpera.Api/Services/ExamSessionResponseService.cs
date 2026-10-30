@@ -20,15 +20,15 @@ public class ExamSessionResponseService
     }
 
     public async Task<ExamSessionResponse?> SubmitAnswerAsync(
-    Guid sessionId,
-    string userId,
-    SubmitExamAnswerRequest request)
+        Guid sessionId,
+        string userId,
+        SubmitExamAnswerRequest request)
     {
         var session = await _db.ExamSessions
-    .Include(s => s.Exam)
-    .FirstOrDefaultAsync(s =>
-        s.Id == sessionId &&
-        s.UserId == userId);
+            .Include(s => s.Exam)
+            .FirstOrDefaultAsync(s =>
+                s.Id == sessionId &&
+                s.UserId == userId);
 
         if (session is null)
         {
@@ -52,25 +52,44 @@ public class ExamSessionResponseService
                 "The specified question does not belong to this exam.");
         }
 
-        var selectedOption = await _db.QuestionOptions
-            .FirstOrDefaultAsync(option =>
-                option.Id == request.SelectedOptionId &&
-                option.QuestionId == request.QuestionId);
+        var question = await _db.Questions
+            .FirstOrDefaultAsync(q => q.Id == request.QuestionId);
 
-        if (selectedOption is null)
+        if (question is null)
         {
             throw new InvalidOperationException(
-                "The selected option does not belong to the specified question.");
+                "The specified question was not found.");
         }
 
-        var question = await _db.Questions
-            .FirstAsync(q => q.Id == request.QuestionId);
+        if (request.SelectedOptionId.HasValue)
+        {
+            var selectedOptionExists = await _db.QuestionOptions
+                .AnyAsync(option =>
+                    option.Id == request.SelectedOptionId.Value &&
+                    option.QuestionId == request.QuestionId);
+
+            if (!selectedOptionExists)
+            {
+                throw new InvalidOperationException(
+                    "The selected option does not belong to the specified question.");
+            }
+        }
+        else if (question.Type == QuestionType.SingleChoice ||
+                 question.Type == QuestionType.TrueFalse)
+        {
+            throw new InvalidOperationException(
+                "A selected option is required for this question type.");
+        }
 
         var evaluation = await _evaluationService.EvaluateAsync(
             new StudentAnswerRequest
             {
                 QuestionId = request.QuestionId,
-                SelectedOptionId = request.SelectedOptionId
+                SelectedOptionId = request.SelectedOptionId,
+                SelectedOptionIds = request.SelectedOptionIds,
+                OrderedOptionIds = request.OrderedOptionIds,
+                NumericAnswer = request.NumericAnswer,
+                SelectedRationaleOptionIds = request.SelectedRationaleOptionIds
             },
             question.Type);
 
@@ -81,6 +100,7 @@ public class ExamSessionResponseService
         }
 
         var response = await _db.ExamSessionResponses
+            .Include(r => r.SelectedRationaleOptions)
             .FirstOrDefaultAsync(r =>
                 r.ExamSessionId == sessionId &&
                 r.QuestionId == request.QuestionId);
@@ -97,9 +117,33 @@ public class ExamSessionResponseService
             _db.ExamSessionResponses.Add(response);
         }
 
-        response.SelectedOptionId = request.SelectedOptionId;
+        response.SelectedOptionId =
+            question.Type == QuestionType.NumericEntry
+                ? null
+                : request.SelectedOptionId;
+
+        response.NumericAnswer =
+            question.Type == QuestionType.NumericEntry
+                ? evaluation.NumericAnswer
+                : null;
+
         response.IsCorrect = evaluation.IsCorrect;
+        response.PointsEarned = evaluation.PointsEarned;
+        response.MaximumPoints = evaluation.MaximumPoints;
         response.AnsweredAt = DateTime.UtcNow;
+
+        // Replace previous rationale selections with the latest submission.
+        response.SelectedRationaleOptions.Clear();
+
+        foreach (var rationaleOptionId in evaluation.SelectedRationaleOptionIds)
+        {
+            response.SelectedRationaleOptions.Add(
+                new ExamSessionResponseRationaleOption
+                {
+                    ExamSessionResponseId = response.Id,
+                    QuestionRationaleOptionId = rationaleOptionId
+                });
+        }
 
         await _db.SaveChangesAsync();
 
@@ -107,8 +151,8 @@ public class ExamSessionResponseService
     }
 
     public async Task<ExamSession?> CompleteSessionAsync(
-     Guid sessionId,
-     string userId)
+        Guid sessionId,
+        string userId)
     {
         var session = await _db.ExamSessions
             .FirstOrDefaultAsync(s =>
