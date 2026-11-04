@@ -80,6 +80,12 @@ public class CreateQuestionRequestValidator
                 QuestionScoringMethod.ZeroOne
             ],
 
+            QuestionType.BowTie =>
+            [
+                QuestionScoringMethod.AllOrNothing,
+                QuestionScoringMethod.ZeroOne
+            ],
+
             _ => Array.Empty<QuestionScoringMethod>()
         };
 
@@ -120,14 +126,15 @@ public class CreateQuestionRequestValidator
                     "Numeric Entry questions must not contain selectable options.");
             }
         }
-        else if (request.Type == QuestionType.MatrixGrid)
+        else if (request.Type == QuestionType.MatrixGrid ||
+                 request.Type == QuestionType.BowTie)
         {
             if (options is { Count: > 0 })
-            {
-                AddError(
-                    "options",
-                    "Matrix/Grid questions must not contain conventional options.");
-            }
+                {
+                 AddError(
+                 "options",
+                 "Matrix/Grid and Bow-Tie questions must not contain conventional options.");
+         }
         }
         else
         {
@@ -160,7 +167,8 @@ public class CreateQuestionRequestValidator
         }
 
         if (options is not null &&
-            request.Type != QuestionType.MatrixGrid)
+                request.Type != QuestionType.MatrixGrid &&
+                request.Type != QuestionType.BowTie)
         {
             var correctOptionCount =
                 options.Count(option => option.IsCorrect);
@@ -332,6 +340,103 @@ public class CreateQuestionRequestValidator
             }
         }
 
+        // Bow-Tie validation
+if (request.Type == QuestionType.BowTie)
+{
+    var bowTieOptions = request.BowTieOptions ?? [];
+
+    // Validate minimum option counts per category.
+    if (bowTieOptions.Count(option =>
+        option.Category == BowTieOptionCategory.Condition) < 1)
+    {
+        AddError(
+            "bowTieOptions",
+            "A Bow-Tie question must contain at least one Condition option.");
+    }
+
+    if (bowTieOptions.Count(option =>
+        option.Category == BowTieOptionCategory.Action) < 2)
+    {
+        AddError(
+            "bowTieOptions",
+            "A Bow-Tie question must contain at least two Action options.");
+    }
+
+    if (bowTieOptions.Count(option =>
+        option.Category == BowTieOptionCategory.Parameter) < 2)
+    {
+        AddError(
+            "bowTieOptions",
+            "A Bow-Tie question must contain at least two Parameter options.");
+    }
+
+    if (bowTieOptions.Any(option =>
+        string.IsNullOrWhiteSpace(option.Text)))
+    {
+        AddError(
+            "bowTieOptions",
+            "Every Bow-Tie option must contain text.");
+    }
+
+    if (bowTieOptions.Any(option =>
+        !Enum.IsDefined(typeof(BowTieOptionCategory), option.Category)))
+    {
+        AddError(
+            "bowTieOptions",
+            "Every Bow-Tie option must have a valid category.");
+    }
+
+    // Display order must be unique within each category.
+    if (bowTieOptions
+        .GroupBy(option => new { option.Category, option.DisplayOrder })
+        .Any(group => group.Count() > 1))
+    {
+        AddError(
+            "bowTieOptions",
+            "Bow-Tie option display orders must be unique within each category.");
+    }
+
+    // Validate the correct answer distribution.
+    var correctConditions = bowTieOptions.Count(option =>
+        option.Category == BowTieOptionCategory.Condition &&
+        option.IsCorrect);
+
+    var correctActions = bowTieOptions.Count(option =>
+        option.Category == BowTieOptionCategory.Action &&
+        option.IsCorrect);
+
+    var correctParameters = bowTieOptions.Count(option =>
+        option.Category == BowTieOptionCategory.Parameter &&
+        option.IsCorrect);
+
+    if (correctConditions != 1)
+    {
+        AddError(
+            "bowTieOptions",
+            "A Bow-Tie question must have exactly one correct Condition.");
+    }
+
+    if (correctActions != 2)
+    {
+        AddError(
+            "bowTieOptions",
+            "A Bow-Tie question must have exactly two correct Actions.");
+    }
+
+    if (correctParameters != 2)
+    {
+        AddError(
+            "bowTieOptions",
+            "A Bow-Tie question must have exactly two correct Parameters.");
+    }
+}
+else if (request.BowTieOptions is { Count: > 0 })
+{
+    AddError(
+        "bowTieOptions",
+        "Bow-Tie options can only be supplied for Bow-Tie questions.");
+}
+
         if (request.Type == QuestionType.SingleChoice &&
             request.ScoringMethod == QuestionScoringMethod.RationaleScoring &&
             (request.RationaleOptions is null ||
@@ -346,4 +451,6 @@ public class CreateQuestionRequestValidator
             entry => entry.Key,
             entry => entry.Value.ToArray());
     }
+
+
 }

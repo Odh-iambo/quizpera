@@ -21,6 +21,8 @@ public class SubmitExamAnswerRequest
 
     // Matrix/Grid: one selected column per matrix row
     public List<MatrixAnswerRequest> MatrixAnswers { get; set; } = [];
+
+    public List<Guid> BowTieOptionIds { get; set; } = [];
 }
 
 public class MatrixAnswerRequest

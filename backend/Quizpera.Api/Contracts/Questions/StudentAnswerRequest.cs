@@ -16,4 +16,6 @@ public class StudentAnswerRequest
 
     public List<MatrixAnswerRequest> MatrixAnswers { get; set; } = new();
 
+    public List<Guid> BowTieOptionIds { get; set; } = [];
+
 }

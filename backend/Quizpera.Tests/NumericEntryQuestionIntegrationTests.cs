@@ -30,7 +30,8 @@ public sealed class NumericEntryQuestionIntegrationTests : IAsyncLifetime
     {
         await using var scope = _factory.Services.CreateAsyncScope();
 
-        var db = scope.ServiceProvider.GetRequiredService<QuizperaDbContext>();
+        var db = scope.ServiceProvider
+            .GetRequiredService<QuizperaDbContext>();
 
         var program = new ExamProgram
         {
@@ -85,6 +86,7 @@ public sealed class NumericEntryQuestionIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task CreateQuestion_NumericEntry_PersistsCorrectAnswerAndTolerance()
     {
+        // Arrange: Create a Numeric Entry question.
         using var request = CreateAdminRequest(
             HttpMethod.Post,
             "/api/questions");
@@ -105,6 +107,7 @@ public sealed class NumericEntryQuestionIntegrationTests : IAsyncLifetime
             options = Array.Empty<object>()
         });
 
+        // Act: Send creation request.
         using var response = await _client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -117,21 +120,24 @@ public sealed class NumericEntryQuestionIntegrationTests : IAsyncLifetime
 
         var questionId = root.GetProperty("id").GetGuid();
 
+        // Assert: Creation response contains the expected values.
         Assert.Equal(
             "NumericEntry",
             root.GetProperty("type").GetString());
 
-            Assert.Equal(
-    12.5m,
-    root.GetProperty("numericCorrectAnswer").GetDecimal());
+        Assert.Equal(
+            12.5m,
+            root.GetProperty("numericCorrectAnswer").GetDecimal());
 
-Assert.Equal(
-    0.5m,
-    root.GetProperty("numericTolerance").GetDecimal());
+        Assert.Equal(
+            0.5m,
+            root.GetProperty("numericTolerance").GetDecimal());
 
+        // Verify: Numeric Entry values were persisted in PostgreSQL.
         await using var scope = _factory.Services.CreateAsyncScope();
 
-        var db = scope.ServiceProvider.GetRequiredService<QuizperaDbContext>();
+        var db = scope.ServiceProvider
+            .GetRequiredService<QuizperaDbContext>();
 
         var savedQuestion = await db.Questions
             .SingleAsync(q => q.Id == questionId);
@@ -145,58 +151,66 @@ Assert.Equal(
                 .Where(o => o.QuestionId == questionId)
                 .ToListAsync());
 
-                using var getQuestionRequest = CreateAdminRequest(
-    HttpMethod.Get,
-    $"/api/questions/{questionId}");
+        // Verify: Student-facing question delivery does not expose the answer key.
+        using var getQuestionRequest = CreateAdminRequest(
+            HttpMethod.Get,
+            $"/api/questions/{questionId}");
 
-using var getQuestionResponse =
-    await _client.SendAsync(getQuestionRequest);
+        using var getQuestionResponse =
+            await _client.SendAsync(getQuestionRequest);
 
-Assert.Equal(
-    HttpStatusCode.OK,
-    getQuestionResponse.StatusCode);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            getQuestionResponse.StatusCode);
 
-var getQuestionBody =
-    await getQuestionResponse.Content.ReadAsStringAsync();
+        var getQuestionBody =
+            await getQuestionResponse.Content.ReadAsStringAsync();
 
-using var getQuestionDocument =
-    JsonDocument.Parse(getQuestionBody);
+        using var getQuestionDocument =
+            JsonDocument.Parse(getQuestionBody);
 
-var getQuestionRoot = getQuestionDocument.RootElement;
+        var getQuestionRoot = getQuestionDocument.RootElement;
 
-Assert.Equal(
-    12.5m,
-    getQuestionRoot.GetProperty("numericCorrectAnswer").GetDecimal());
+        // The properties may be omitted or serialized as null,
+        // but must never contain the actual answer key.
+        Assert.False(
+            getQuestionRoot.TryGetProperty(
+                "numericCorrectAnswer",
+                out var numericAnswer)
+            && numericAnswer.ValueKind != JsonValueKind.Null);
 
-Assert.Equal(
-    0.5m,
-    getQuestionRoot.GetProperty("numericTolerance").GetDecimal());
+        Assert.False(
+            getQuestionRoot.TryGetProperty(
+                "numericTolerance",
+                out var numericTolerance)
+            && numericTolerance.ValueKind != JsonValueKind.Null);
 
+        // Verify: Administrator review endpoint exposes the answer key.
+        using var reviewRequest = CreateAdminRequest(
+            HttpMethod.Get,
+            $"/api/questions/{questionId}/review");
 
-    using var reviewRequest = CreateAdminRequest(
-    HttpMethod.Get,
-    $"/api/questions/{questionId}/review");
+        using var reviewResponse =
+            await _client.SendAsync(reviewRequest);
 
-using var reviewResponse =
-    await _client.SendAsync(reviewRequest);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            reviewResponse.StatusCode);
 
-Assert.Equal(
-    HttpStatusCode.OK,
-    reviewResponse.StatusCode);
+        var reviewBody =
+            await reviewResponse.Content.ReadAsStringAsync();
 
-var reviewBody =
-    await reviewResponse.Content.ReadAsStringAsync();
+        using var reviewDocument =
+            JsonDocument.Parse(reviewBody);
 
-using var reviewDocument = JsonDocument.Parse(reviewBody);
+        var reviewRoot = reviewDocument.RootElement;
 
-var reviewRoot = reviewDocument.RootElement;
+        Assert.Equal(
+            12.5m,
+            reviewRoot.GetProperty("numericCorrectAnswer").GetDecimal());
 
-Assert.Equal(
-    12.5m,
-    reviewRoot.GetProperty("numericCorrectAnswer").GetDecimal());
-
-Assert.Equal(
-    0.5m,
-    reviewRoot.GetProperty("numericTolerance").GetDecimal());
+        Assert.Equal(
+            0.5m,
+            reviewRoot.GetProperty("numericTolerance").GetDecimal());
     }
 }

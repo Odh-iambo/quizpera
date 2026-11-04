@@ -41,6 +41,8 @@ public class ExamSessionQuestionService
             .ThenInclude(q => q.MatrixRows)
                 .Include(eq => eq.Question)
             .ThenInclude(q => q.MatrixColumns)
+            .Include(eq => eq.Question)
+            .ThenInclude(q => q.BowTieOptions)
             .OrderBy(eq => eq.DisplayOrder)
             .ThenBy(eq => eq.QuestionId)
             .ToListAsync();
@@ -62,6 +64,7 @@ public class ExamSessionQuestionService
     .Where(r => r.ExamSessionId == sessionId)
     .Include(r => r.SelectedOptions)
     .Include(r => r.MatrixAnswers)
+    .Include(r => r.BowTieSelections)
     .ToDictionaryAsync(r => r.QuestionId);
 
         var questions = accessibleQuestions
@@ -107,6 +110,18 @@ public class ExamSessionQuestionService
                             DisplayOrder = o.DisplayOrder
                         })
                         .ToList(),
+
+                    BowTieOptions = eq.Question.BowTieOptions
+                    .OrderBy(o => o.Category)
+                    .ThenBy(o => o.DisplayOrder)
+                    .Select(o => new ExamSessionQuestionBowTieOptionResponse
+                    {
+                        Id = o.Id,
+                        Category = o.Category.ToString(),
+                        Text = o.Text,
+                        DisplayOrder = o.DisplayOrder
+                    })
+                    .ToList(),
 
                     SavedAnswer = MapSavedAnswer(savedResponse)
                 };
@@ -166,6 +181,11 @@ public class ExamSessionQuestionService
         SelectedColumnId = answer.SelectedColumnId
     })
     .ToList(),
+
+            BowTieOptionIds = response.BowTieSelections
+        .Select(selection => selection.BowTieOptionId)
+        .ToList(),
+
             AnsweredAt = response.AnsweredAt
 
         };

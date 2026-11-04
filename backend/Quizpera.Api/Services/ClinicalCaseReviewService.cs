@@ -33,7 +33,9 @@ public class ClinicalCaseReviewService
             .FirstOrDefaultAsync(cancellationToken);
 
         if (session is null)
+        {
             return null;
+        }
 
         var clinicalCase = await _db.ClinicalCases
             .AsNoTracking()
@@ -45,45 +47,45 @@ public class ClinicalCaseReviewService
             .FirstOrDefaultAsync(cancellationToken);
 
         if (clinicalCase is null)
+        {
             return null;
+        }
 
+        // Verify that this clinical case actually belongs to the exam.
+        // A case sharing the exam's program is not sufficient.
+        var caseQuestionIds = await _db.ClinicalCaseQuestions
+            .AsNoTracking()
+            .Where(cq => cq.ClinicalCaseId == caseId)
+            .Select(cq => cq.QuestionId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
 
-            // Verify that this clinical case actually belongs to the exam.
-// A case sharing the exam's program is not sufficient.
-var caseQuestionIds = await _db.ClinicalCaseQuestions
-    .AsNoTracking()
-    .Where(cq => cq.ClinicalCaseId == caseId)
-    .Select(cq => cq.QuestionId)
-    .Distinct()
-    .ToListAsync(cancellationToken);
+        if (caseQuestionIds.Count == 0)
+        {
+            return null;
+        }
 
-if (caseQuestionIds.Count == 0)
-{
-    return null;
-}
+        var assignedQuestionCount = await _db.ExamQuestions
+            .AsNoTracking()
+            .Where(eq =>
+                eq.ExamId == session.ExamId &&
+                caseQuestionIds.Contains(eq.QuestionId))
+            .Select(eq => eq.QuestionId)
+            .Distinct()
+            .CountAsync(cancellationToken);
 
-var assignedQuestionCount = await _db.ExamQuestions
-    .AsNoTracking()
-    .Where(eq =>
-        eq.ExamId == session.ExamId &&
-        caseQuestionIds.Contains(eq.QuestionId))
-    .Select(eq => eq.QuestionId)
-    .Distinct()
-    .CountAsync(cancellationToken);
+        if (assignedQuestionCount == 0)
+        {
+            return null;
+        }
 
-// The case has no questions in this exam.
-if (assignedQuestionCount == 0)
-{
-    return null;
-}
-
-// Never return a partial review for an inconsistently configured case.
-if (assignedQuestionCount != caseQuestionIds.Count)
-{
-    throw new InvalidOperationException(
-        "Clinical case review is unavailable because the case is only " +
-        "partially included in this exam.");
-}
+        // Never return a partial review for an inconsistently configured case.
+        if (assignedQuestionCount != caseQuestionIds.Count)
+        {
+            throw new InvalidOperationException(
+                "Clinical case review is unavailable because the case is only " +
+                "partially included in this exam.");
+        }
 
         var progress = await _db.ExamSessionCaseProgress
             .AsNoTracking()
@@ -93,7 +95,9 @@ if (assignedQuestionCount != caseQuestionIds.Count)
                 cancellationToken);
 
         if (progress is null)
+        {
             return null;
+        }
 
         if (!progress.IsCompleted)
         {
@@ -101,11 +105,14 @@ if (assignedQuestionCount != caseQuestionIds.Count)
                 "Clinical case review is only available after the case has been completed.");
         }
 
+        // Load questions, conventional options and Bow-Tie options.
         var questions = await _db.ClinicalCaseQuestions
             .AsNoTracking()
             .Where(cq => cq.ClinicalCaseId == caseId)
             .Include(cq => cq.Question)
                 .ThenInclude(q => q.Options)
+            .Include(cq => cq.Question)
+                .ThenInclude(q => q.BowTieOptions)
             .OrderBy(cq => cq.DisplayOrder)
             .ToListAsync(cancellationToken);
 
@@ -113,11 +120,14 @@ if (assignedQuestionCount != caseQuestionIds.Count)
             .Select(cq => cq.QuestionId)
             .ToList();
 
+        // Load student responses and their selected Bow-Tie options.
         var responses = await _db.ExamSessionResponses
             .Where(r =>
                 r.ExamSessionId == sessionId &&
                 questionIds.Contains(r.QuestionId))
             .Include(r => r.SelectedOptions)
+            .Include(r => r.BowTieSelections)
+                .ThenInclude(selection => selection.BowTieOption)
             .ToListAsync(cancellationToken);
 
         var responseByQuestionId = responses
@@ -138,11 +148,11 @@ if (assignedQuestionCount != caseQuestionIds.Count)
                     .Select(ro => ro.QuestionOptionId)
                     .ToList();
 
-                if (response?.SelectedOptionId is Guid selectedOptionId &&
-    selectedOptionIds.Count == 0)
-{
-    selectedOptionIds.Add(selectedOptionId);
-}
+            if (response?.SelectedOptionId is Guid selectedOptionId &&
+                selectedOptionIds.Count == 0)
+            {
+                selectedOptionIds.Add(selectedOptionId);
+            }
 
             var selectedOptions = selectedOptionIds
                 .Select(id => question.Options.FirstOrDefault(o => o.Id == id))
@@ -173,17 +183,55 @@ if (assignedQuestionCount != caseQuestionIds.Count)
                     })
                     .ToList();
 
+            // Map the student's selected Bow-Tie options.
+            var selectedBowTieOptions = response is null
+                ? []
+                : response.BowTieSelections
+                    .OrderBy(selection => selection.BowTieOption.Category)
+                    .ThenBy(selection => selection.BowTieOption.DisplayOrder)
+                    .Select(selection => new ExamSessionReviewBowTieOptionResponse
+                    {
+                        Id = selection.BowTieOption.Id,
+                        Category = selection.BowTieOption.Category.ToString(),
+                        Text = selection.BowTieOption.Text,
+                        DisplayOrder = selection.BowTieOption.DisplayOrder
+                    })
+                    .ToList();
+
+            // Map the correct Bow-Tie answer-key options.
+            var correctBowTieOptions = question.BowTieOptions
+                .Where(option => option.IsCorrect)
+                .OrderBy(option => option.Category)
+                .ThenBy(option => option.DisplayOrder)
+                .Select(option => new ExamSessionReviewBowTieOptionResponse
+                {
+                    Id = option.Id,
+                    Category = option.Category.ToString(),
+                    Text = option.Text,
+                    DisplayOrder = option.DisplayOrder
+                })
+                .ToList();
+
             return new ExamSessionReviewQuestionResponse
             {
                 QuestionId = question.Id,
                 Stem = question.Stem,
                 Difficulty = question.Difficulty.ToString(),
                 Type = question.Type.ToString(),
+
                 SelectedOption = selectedOptions.FirstOrDefault(),
                 CorrectOption = correctOptions.FirstOrDefault(),
+
                 SelectedOptions = selectedOptions,
                 CorrectOptions = correctOptions,
+
+                SelectedBowTieOptions = selectedBowTieOptions,
+                CorrectBowTieOptions = correctBowTieOptions,
+
                 IsCorrect = response?.IsCorrect,
+                PointsEarned = response?.PointsEarned,
+                MaximumPoints = response?.MaximumPoints,
+
                 Rationale = question.Rationale
             };
         }).ToList();

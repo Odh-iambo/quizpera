@@ -42,6 +42,8 @@ public class CreateQuestionRequest
 
     public List<CreateQuestionMatrixAnswerRequest> MatrixAnswers { get; set; } = [];
 
+    public List<CreateBowTieOptionRequest> BowTieOptions { get; set; } = [];
+
 
 }
 
@@ -85,4 +87,15 @@ public class CreateQuestionMatrixAnswerRequest
     public int RowIndex { get; set; }
 
     public int CorrectColumnIndex { get; set; }
+}
+
+public class CreateBowTieOptionRequest
+{
+    public string Text { get; set; } = null!;
+
+    public BowTieOptionCategory Category { get; set; }
+
+    public int DisplayOrder { get; set; }
+
+    public bool IsCorrect { get; set; }
 }

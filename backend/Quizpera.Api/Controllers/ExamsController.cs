@@ -544,6 +544,40 @@ public async Task<IActionResult> SubmitAnswer(
             .Select(q => q.Rationale)
             .SingleAsync();
 
+
+            // Load Bow-Tie options for Tutored Mode feedback.
+var bowTieOptions = await _db.BowTieOptions
+    .Where(option => option.QuestionId == response.QuestionId)
+    .OrderBy(option => option.Category)
+    .ThenBy(option => option.DisplayOrder)
+    .ToListAsync();
+
+var selectedBowTieIds = response.BowTieSelections
+    .Select(selection => selection.BowTieOptionId)
+    .ToHashSet();
+
+var selectedBowTieOptions = bowTieOptions
+    .Where(option => selectedBowTieIds.Contains(option.Id))
+    .Select(option => new
+    {
+        id = option.Id,
+        category = option.Category.ToString(),
+        text = option.Text,
+        displayOrder = option.DisplayOrder
+    })
+    .ToList();
+
+var correctBowTieOptions = bowTieOptions
+    .Where(option => option.IsCorrect)
+    .Select(option => new
+    {
+        id = option.Id,
+        category = option.Category.ToString(),
+        text = option.Text,
+        displayOrder = option.DisplayOrder
+    })
+    .ToList();
+
         return Ok(new
         {
             response.Id,
@@ -551,17 +585,20 @@ public async Task<IActionResult> SubmitAnswer(
             response.QuestionId,
             response.SelectedOptionId,
             response.NumericAnswer,
-            response.AnsweredAt,
+                    response.AnsweredAt,
+        feedback = new
+        {
+            isCorrect = response.IsCorrect,
+            pointsEarned = response.PointsEarned,
+            maximumPoints = response.MaximumPoints,
+            rationale = questionRationale,
 
-            feedback = new
-            {
-                isCorrect = response.IsCorrect,
-                pointsEarned = response.PointsEarned,
-                maximumPoints = response.MaximumPoints,
-                rationale = questionRationale,
-                selectedRationaleOptions,
-                correctRationaleOptions
-            }
+            selectedRationaleOptions,
+            correctRationaleOptions,
+
+            selectedBowTieOptions,
+            correctBowTieOptions
+        }
         });
     }
     catch (InvalidOperationException ex)

@@ -23,4 +23,7 @@ public class QuestionResponse
     public decimal? NumericTolerance { get; set; }
 
     public List<QuestionOptionResponse> Options { get; set; } = [];
+
+    public List<BowTieOptionExamResponse> BowTieOptions { get; set; } = [];
+
 }

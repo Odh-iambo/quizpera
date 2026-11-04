@@ -7,6 +7,9 @@ public class ExamSessionReviewResponse
     public string Status { get; set; } = null!;
 
     public List<ExamSessionReviewQuestionResponse> Questions { get; set; } = [];
+
+
+
 }
 
 public class ExamSessionReviewQuestionResponse
@@ -50,6 +53,16 @@ public class ExamSessionReviewQuestionResponse
 
     // Explanatory rationale for the question.
     public string? Rationale { get; set; }
+
+    // Bow-Tie question review.
+public List<ExamSessionReviewBowTieOptionResponse>
+    SelectedBowTieOptions { get; set; } = [];
+
+public List<ExamSessionReviewBowTieOptionResponse>
+    CorrectBowTieOptions { get; set; } = [];
+
+
+
 }
 
 public class ExamSessionReviewOptionResponse
@@ -70,4 +83,15 @@ public class ExamSessionReviewRationaleOptionResponse
     public int DisplayOrder { get; set; }
 
     public bool IsCorrect { get; set; }
+}
+
+public class ExamSessionReviewBowTieOptionResponse
+{
+    public Guid Id { get; set; }
+
+    public string Category { get; set; } = null!;
+
+    public string Text { get; set; } = null!;
+
+    public int DisplayOrder { get; set; }
 }

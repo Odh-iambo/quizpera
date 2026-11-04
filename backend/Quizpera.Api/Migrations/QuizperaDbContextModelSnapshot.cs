@@ -218,6 +218,35 @@ namespace Quizpera.Api.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("Quizpera.Api.Domain.Questions.BowTieOption", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsCorrect")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("QuestionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionId");
+
+                    b.ToTable("BowTieOptions");
+                });
+
             modelBuilder.Entity("Quizpera.Api.Domain.Questions.ClientNeed", b =>
                 {
                     b.Property<Guid>("Id")
@@ -549,6 +578,21 @@ namespace Quizpera.Api.Migrations
                     b.ToTable("ExamSessionResponses");
                 });
 
+            modelBuilder.Entity("Quizpera.Api.Domain.Questions.ExamSessionResponseBowTieSelection", b =>
+                {
+                    b.Property<Guid>("ExamSessionResponseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BowTieOptionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ExamSessionResponseId", "BowTieOptionId");
+
+                    b.HasIndex("BowTieOptionId");
+
+                    b.ToTable("ExamSessionResponseBowTieSelections");
+                });
+
             modelBuilder.Entity("Quizpera.Api.Domain.Questions.ExamSessionResponseOption", b =>
                 {
                     b.Property<Guid>("ExamSessionResponseId")
@@ -862,6 +906,17 @@ namespace Quizpera.Api.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Quizpera.Api.Domain.Questions.BowTieOption", b =>
+                {
+                    b.HasOne("Quizpera.Api.Domain.Questions.Question", "Question")
+                        .WithMany("BowTieOptions")
+                        .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Question");
+                });
+
             modelBuilder.Entity("Quizpera.Api.Domain.Questions.ClinicalCase", b =>
                 {
                     b.HasOne("Quizpera.Api.Domain.Questions.Domain", "Domain")
@@ -1086,6 +1141,25 @@ namespace Quizpera.Api.Migrations
                     b.Navigation("SelectedOption");
                 });
 
+            modelBuilder.Entity("Quizpera.Api.Domain.Questions.ExamSessionResponseBowTieSelection", b =>
+                {
+                    b.HasOne("Quizpera.Api.Domain.Questions.BowTieOption", "BowTieOption")
+                        .WithMany()
+                        .HasForeignKey("BowTieOptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Quizpera.Api.Domain.Questions.ExamSessionResponse", "ExamSessionResponse")
+                        .WithMany("BowTieSelections")
+                        .HasForeignKey("ExamSessionResponseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BowTieOption");
+
+                    b.Navigation("ExamSessionResponse");
+                });
+
             modelBuilder.Entity("Quizpera.Api.Domain.Questions.ExamSessionResponseOption", b =>
                 {
                     b.HasOne("Quizpera.Api.Domain.Questions.ExamSessionResponse", "ExamSessionResponse")
@@ -1288,6 +1362,8 @@ namespace Quizpera.Api.Migrations
 
             modelBuilder.Entity("Quizpera.Api.Domain.Questions.ExamSessionResponse", b =>
                 {
+                    b.Navigation("BowTieSelections");
+
                     b.Navigation("MatrixAnswers");
 
                     b.Navigation("SelectedOptions");
@@ -1297,6 +1373,8 @@ namespace Quizpera.Api.Migrations
 
             modelBuilder.Entity("Quizpera.Api.Domain.Questions.Question", b =>
                 {
+                    b.Navigation("BowTieOptions");
+
                     b.Navigation("ExamQuestions");
 
                     b.Navigation("MatrixColumns");

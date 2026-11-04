@@ -39,15 +39,19 @@ public class ExamSessionReviewService
                 .ThenInclude(q => q.Options)
             .Include(eq => eq.Question)
                 .ThenInclude(q => q.RationaleOptions)
+                .Include(eq => eq.Question)
+                .ThenInclude(q => q.BowTieOptions)
             .OrderBy(eq => eq.QuestionId)
             .ToListAsync();
 
         // Load submitted responses and their selected rationale options.
         var responses = await _db.ExamSessionResponses
-            .Where(r => r.ExamSessionId == sessionId)
-            .Include(r => r.SelectedRationaleOptions)
-                .ThenInclude(ro => ro.QuestionRationaleOption)
-            .ToListAsync();
+    .Where(r => r.ExamSessionId == sessionId)
+    .Include(r => r.SelectedRationaleOptions)
+        .ThenInclude(ro => ro.QuestionRationaleOption)
+    .Include(r => r.BowTieSelections)
+        .ThenInclude(selection => selection.BowTieOption)
+    .ToListAsync();
 
         var responseByQuestionId = responses
             .ToDictionary(r => r.QuestionId);
@@ -115,6 +119,34 @@ public class ExamSessionReviewService
                         Id = correctOption.Id,
                         Text = correctOption.Text
                     },
+
+
+                    SelectedBowTieOptions = response is null
+    ? []
+    : response.BowTieSelections
+        .OrderBy(selection => selection.BowTieOption.Category)
+        .ThenBy(selection => selection.BowTieOption.DisplayOrder)
+        .Select(selection => new ExamSessionReviewBowTieOptionResponse
+        {
+            Id = selection.BowTieOption.Id,
+            Category = selection.BowTieOption.Category.ToString(),
+            Text = selection.BowTieOption.Text,
+            DisplayOrder = selection.BowTieOption.DisplayOrder
+        })
+        .ToList(),
+
+CorrectBowTieOptions = question.BowTieOptions
+    .Where(option => option.IsCorrect)
+    .OrderBy(option => option.Category)
+    .ThenBy(option => option.DisplayOrder)
+    .Select(option => new ExamSessionReviewBowTieOptionResponse
+    {
+        Id = option.Id,
+        Category = option.Category.ToString(),
+        Text = option.Text,
+        DisplayOrder = option.DisplayOrder
+    })
+    .ToList(),
 
                 SelectedRationaleOptions = selectedRationaleOptions,
                 CorrectRationaleOptions = correctRationaleOptions,

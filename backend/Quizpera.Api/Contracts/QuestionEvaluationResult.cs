@@ -13,6 +13,8 @@ public class QuestionEvaluationResult
 
     public List<MatrixAnswerRequest> MatrixAnswers { get; set; } = new();
 
+    public List<Guid> BowTieOptionIds { get; set; } = [];
+
     public decimal? NumericAnswer { get; set; }
 
     public bool IsCorrect { get; set; }

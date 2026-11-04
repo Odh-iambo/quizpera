@@ -7,11 +7,7 @@ public class ExamSessionQuestionsResponse
     public string Status { get; set; } = null!;
 
     public List<ExamSessionQuestionResponse> Questions { get; set; } = [];
-
-
 }
-
-
 
 public class ExamSessionQuestionMatrixRowResponse
 {
@@ -45,10 +41,12 @@ public class ExamSessionQuestionResponse
 
     public List<ExamSessionQuestionOptionResponse> Options { get; set; } = [];
 
-
     public List<ExamSessionQuestionMatrixRowResponse> MatrixRows { get; set; } = [];
 
     public List<ExamSessionQuestionMatrixColumnResponse> MatrixColumns { get; set; } = [];
+
+    // NGN Bow-Tie options. Correctness is deliberately excluded.
+    public List<ExamSessionQuestionBowTieOptionResponse> BowTieOptions { get; set; } = [];
 
     public ExamSessionSavedAnswerResponse? SavedAnswer { get; set; }
 }
@@ -56,6 +54,17 @@ public class ExamSessionQuestionResponse
 public class ExamSessionQuestionOptionResponse
 {
     public Guid Id { get; set; }
+
+    public string Text { get; set; } = null!;
+
+    public int DisplayOrder { get; set; }
+}
+
+public class ExamSessionQuestionBowTieOptionResponse
+{
+    public Guid Id { get; set; }
+
+    public string Category { get; set; } = null!;
 
     public string Text { get; set; } = null!;
 
@@ -70,8 +79,10 @@ public class ExamSessionSavedAnswerResponse
 
     public List<int?> SelectedOrders { get; set; } = [];
 
-
     public List<ExamSessionSavedMatrixAnswerResponse> MatrixAnswers { get; set; } = [];
+
+    // Previously selected NGN Bow-Tie options.
+    public List<Guid> BowTieOptionIds { get; set; } = [];
 
     public decimal? NumericAnswer { get; set; }
 

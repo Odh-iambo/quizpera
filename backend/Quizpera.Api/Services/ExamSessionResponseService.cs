@@ -90,7 +90,8 @@ public class ExamSessionResponseService
                 OrderedOptionIds = request.OrderedOptionIds,
                 NumericAnswer = request.NumericAnswer,
                 SelectedRationaleOptionIds = request.SelectedRationaleOptionIds,
-                MatrixAnswers = request.MatrixAnswers
+                MatrixAnswers = request.MatrixAnswers,
+                BowTieOptionIds = request.BowTieOptionIds
 
             },
             question.Type);
@@ -105,6 +106,7 @@ public class ExamSessionResponseService
     .Include(r => r.SelectedRationaleOptions)
     .Include(r => r.SelectedOption)
     .Include(r => r.MatrixAnswers)
+    .Include(r => r.BowTieSelections)
     .FirstOrDefaultAsync(r =>
         r.ExamSessionId == sessionId &&
         r.QuestionId == request.QuestionId);
@@ -169,6 +171,22 @@ if (question.Type == QuestionType.MatrixGrid)
     }
 }
 
+// Replace previous Bow-Tie selections with the latest submission.
+response.BowTieSelections.Clear();
+
+if (question.Type == QuestionType.BowTie)
+{
+    foreach (var optionId in evaluation.BowTieOptionIds)
+    {
+        response.BowTieSelections.Add(
+            new ExamSessionResponseBowTieSelection
+            {
+                ExamSessionResponseId = response.Id,
+                BowTieOptionId = optionId
+            });
+    }
+}
+
         response.NumericAnswer =
             question.Type == QuestionType.NumericEntry
                 ? evaluation.NumericAnswer
@@ -196,6 +214,10 @@ if (question.Type == QuestionType.MatrixGrid)
 
         return response;
     }
+
+
+
+
 
     public async Task<ExamSession?> CompleteSessionAsync(
         Guid sessionId,

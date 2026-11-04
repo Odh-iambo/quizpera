@@ -41,4 +41,8 @@ public ICollection<ExamSessionMatrixAnswer> MatrixAnswers { get; set; }
     public decimal MaximumPoints { get; set; } = 1m;
 
     public DateTime AnsweredAt { get; set; }
+
+    public ICollection<ExamSessionResponseBowTieSelection>
+    BowTieSelections { get; set; }
+    = new List<ExamSessionResponseBowTieSelection>();
 }

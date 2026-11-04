@@ -25,6 +25,13 @@ public class QuizperaDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<QuestionMatrixAnswer> QuestionMatrixAnswers => Set<QuestionMatrixAnswer>();
 
+    public DbSet<BowTieOption> BowTieOptions =>
+    Set<BowTieOption>();
+
+public DbSet<ExamSessionResponseBowTieSelection>
+    ExamSessionResponseBowTieSelections =>
+        Set<ExamSessionResponseBowTieSelection>();
+
     public DbSet<ExamProgram> ExamPrograms => Set<ExamProgram>();
 
     public DbSet<QuestionDomain> Domains => Set<QuestionDomain>();
@@ -302,6 +309,30 @@ modelBuilder.Entity<ClinicalCaseQuestion>()
             .HasForeignKey(f => f.QuestionId)
             .OnDelete(DeleteBehavior.Restrict);
 
+            modelBuilder.Entity<BowTieOption>()
+            .HasOne(option => option.Question)
+            .WithMany(question => question.BowTieOptions)
+            .HasForeignKey(option => option.QuestionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ExamSessionResponseBowTieSelection>()
+    .HasKey(selection => new
+    {
+        selection.ExamSessionResponseId,
+        selection.BowTieOptionId
+    });
+
+    modelBuilder.Entity<ExamSessionResponseBowTieSelection>()
+    .HasOne(selection => selection.ExamSessionResponse)
+    .WithMany(response => response.BowTieSelections)
+    .HasForeignKey(selection => selection.ExamSessionResponseId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+    modelBuilder.Entity<ExamSessionResponseBowTieSelection>()
+    .HasOne(selection => selection.BowTieOption)
+    .WithMany()
+    .HasForeignKey(selection => selection.BowTieOptionId)
+    .OnDelete(DeleteBehavior.Restrict);
     }
 
 }

@@ -55,4 +55,7 @@ public class Question
 
 public ICollection<QuestionMatrixColumn> MatrixColumns { get; set; }
     = new List<QuestionMatrixColumn>();
+
+    public ICollection<BowTieOption> BowTieOptions { get; set; }
+    = new List<BowTieOption>();
 }

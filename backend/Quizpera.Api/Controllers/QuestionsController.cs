@@ -28,13 +28,13 @@ public class QuestionsController : ControllerBase
         _questionValidationService = questionValidationService;
     }
 
-
+    // GET: api/questions
+    // Administrator question listing.
     [Authorize(Roles = "Admin,SuperAdmin")]
     [HttpGet]
     public async Task<IActionResult> GetQuestions()
     {
         var questions = await _db.Questions
-            .Include(q => q.Options)
             .Select(q => new QuestionResponse
             {
                 Id = q.Id,
@@ -42,11 +42,24 @@ public class QuestionsController : ControllerBase
                 Stem = q.Stem,
                 Difficulty = q.Difficulty,
                 Rationale = q.Rationale,
+
                 Options = q.Options
                     .OrderBy(o => o.DisplayOrder)
                     .Select(o => new QuestionOptionResponse
                     {
                         Id = o.Id,
+                        Text = o.Text,
+                        DisplayOrder = o.DisplayOrder
+                    })
+                    .ToList(),
+
+                BowTieOptions = q.BowTieOptions
+                    .OrderBy(o => o.Category)
+                    .ThenBy(o => o.DisplayOrder)
+                    .Select(o => new BowTieOptionExamResponse
+                    {
+                        Id = o.Id,
+                        Category = o.Category,
                         Text = o.Text,
                         DisplayOrder = o.DisplayOrder
                     })
@@ -57,7 +70,8 @@ public class QuestionsController : ControllerBase
         return Ok(questions);
     }
 
-
+    // GET: api/questions/{id}
+    // Student-facing question delivery.
     [Authorize]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetQuestion(Guid id)
@@ -72,13 +86,26 @@ public class QuestionsController : ControllerBase
                 Difficulty = q.Difficulty,
                 MaximumPoints = q.MaximumPoints,
                 ScoringMethod = q.ScoringMethod,
-                NumericCorrectAnswer = q.NumericCorrectAnswer,
-                NumericTolerance = q.NumericTolerance,
-                   Options = q.Options
+
+                // Correct numeric answers must never be exposed here.
+
+                Options = q.Options
                     .OrderBy(o => o.DisplayOrder)
                     .Select(o => new QuestionOptionExamResponse
                     {
                         Id = o.Id,
+                        Text = o.Text,
+                        DisplayOrder = o.DisplayOrder
+                    })
+                    .ToList(),
+
+                BowTieOptions = q.BowTieOptions
+                    .OrderBy(o => o.Category)
+                    .ThenBy(o => o.DisplayOrder)
+                    .Select(o => new BowTieOptionExamResponse
+                    {
+                        Id = o.Id,
+                        Category = o.Category,
                         Text = o.Text,
                         DisplayOrder = o.DisplayOrder
                     })
@@ -94,6 +121,8 @@ public class QuestionsController : ControllerBase
         return Ok(question);
     }
 
+    // GET: api/questions/{id}/review
+    // Administrator answer-key review.
     [Authorize(Roles = "Admin,SuperAdmin")]
     [HttpGet("{id:guid}/review")]
     public async Task<IActionResult> GetQuestionReview(Guid id)
@@ -109,11 +138,25 @@ public class QuestionsController : ControllerBase
                 Rationale = q.Rationale,
                 NumericCorrectAnswer = q.NumericCorrectAnswer,
                 NumericTolerance = q.NumericTolerance,
+
                 Options = q.Options
                     .OrderBy(o => o.DisplayOrder)
                     .Select(o => new QuestionReviewOptionResponse
                     {
                         Id = o.Id,
+                        Text = o.Text,
+                        DisplayOrder = o.DisplayOrder,
+                        IsCorrect = o.IsCorrect
+                    })
+                    .ToList(),
+
+                BowTieOptions = q.BowTieOptions
+                    .OrderBy(o => o.Category)
+                    .ThenBy(o => o.DisplayOrder)
+                    .Select(o => new BowTieOptionReviewResponse
+                    {
+                        Id = o.Id,
+                        Category = o.Category,
                         Text = o.Text,
                         DisplayOrder = o.DisplayOrder,
                         IsCorrect = o.IsCorrect
@@ -130,146 +173,185 @@ public class QuestionsController : ControllerBase
         return Ok(question);
     }
 
+    // POST: api/questions
+    // Administrator question creation.
     [Authorize(Roles = "Admin,SuperAdmin")]
-[HttpPost]
-public async Task<IActionResult> CreateQuestion(
-    CreateQuestionRequest request)
-{
-    var errors = _validator.Validate(request);
-
-    if (errors.Count > 0)
+    [HttpPost]
+    public async Task<IActionResult> CreateQuestion(
+        CreateQuestionRequest request)
     {
-        return BadRequest(new
+        var errors = _validator.Validate(request);
+
+        if (errors.Count > 0)
         {
-            errors
-        });
-    }
+            return BadRequest(new
+            {
+                errors
+            });
+        }
 
-    var relationshipErrors =
-        await _questionValidationService.ValidateAsync(request);
+        var relationshipErrors =
+            await _questionValidationService.ValidateAsync(request);
 
-    if (relationshipErrors.Count > 0)
-    {
-        return BadRequest(new
+        if (relationshipErrors.Count > 0)
         {
-            errors = relationshipErrors
-        });
-    }
+            return BadRequest(new
+            {
+                errors = relationshipErrors
+            });
+        }
 
-    var question = new Question
-    {
-        Id = Guid.NewGuid(),
-        Type = request.Type,
-        Stem = request.Stem,
-        ExamProgramId = request.ExamProgramId,
-        DomainId = request.DomainId,
-        SubjectId = request.SubjectId,
-        TopicId = request.TopicId,
-        ClientNeedId = request.ClientNeedId,
-        Difficulty = request.Difficulty,
-        MaximumPoints = request.MaximumPoints,
-        ScoringMethod = request.ScoringMethod,
-        Rationale = request.Rationale,
-        NumericCorrectAnswer = request.NumericCorrectAnswer,
-        NumericTolerance = request.NumericTolerance
-    };
-
-    // Create conventional options for non-Matrix questions.
-    foreach (var option in request.Options ?? [])
-    {
-        question.Options.Add(new QuestionOption
+        var question = new Question
         {
             Id = Guid.NewGuid(),
-            Text = option.Text,
-            DisplayOrder = option.DisplayOrder,
-            IsCorrect = option.IsCorrect
-        });
-    }
+            Type = request.Type,
+            Stem = request.Stem,
+            ExamProgramId = request.ExamProgramId,
+            DomainId = request.DomainId,
+            SubjectId = request.SubjectId,
+            TopicId = request.TopicId,
+            ClientNeedId = request.ClientNeedId,
+            Difficulty = request.Difficulty,
+            MaximumPoints = request.MaximumPoints,
+            ScoringMethod = request.ScoringMethod,
+            Rationale = request.Rationale,
+            NumericCorrectAnswer = request.NumericCorrectAnswer,
+            NumericTolerance = request.NumericTolerance
+        };
 
-    // Create Matrix/Grid rows and columns.
-    if (request.Type == QuestionType.MatrixGrid)
-    {
-        var rows = request.MatrixRows!
-            .Select(row => new QuestionMatrixRow
-            {
-                Id = Guid.NewGuid(),
-                QuestionId = question.Id,
-                Text = row.Text,
-                DisplayOrder = row.DisplayOrder
-            })
-            .ToList();
-
-        var columns = request.MatrixColumns!
-            .Select(column => new QuestionMatrixColumn
-            {
-                Id = Guid.NewGuid(),
-                QuestionId = question.Id,
-                Text = column.Text,
-                DisplayOrder = column.DisplayOrder
-            })
-            .ToList();
-
-        foreach (var row in rows)
+        // Create conventional options.
+        if (request.Type != QuestionType.MatrixGrid &&
+            request.Type != QuestionType.BowTie)
         {
-            question.MatrixRows.Add(row);
+            foreach (var option in request.Options ?? [])
+            {
+                question.Options.Add(new QuestionOption
+                {
+                    Id = Guid.NewGuid(),
+                    Text = option.Text,
+                    DisplayOrder = option.DisplayOrder,
+                    CorrectOrder = option.CorrectOrder,
+                    IsCorrect = option.IsCorrect
+                });
+            }
         }
 
-        foreach (var column in columns)
+        // Create Matrix/Grid rows and columns.
+        if (request.Type == QuestionType.MatrixGrid)
         {
-            question.MatrixColumns.Add(column);
-        }
-
-        // Map each row to its correct column.
-        foreach (var answer in request.MatrixAnswers!)
-        {
-            var matrixRow = rows[answer.RowIndex];
-
-            var correctColumn = columns[answer.CorrectColumnIndex];
-
-            _db.Set<QuestionMatrixAnswer>().Add(
-                new QuestionMatrixAnswer
+            var rows = request.MatrixRows!
+                .Select(row => new QuestionMatrixRow
                 {
                     Id = Guid.NewGuid(),
                     QuestionId = question.Id,
-                    MatrixRowId = matrixRow.Id,
-                    CorrectColumnId = correctColumn.Id
-                });
+                    Text = row.Text,
+                    DisplayOrder = row.DisplayOrder
+                })
+                .ToList();
+
+            var columns = request.MatrixColumns!
+                .Select(column => new QuestionMatrixColumn
+                {
+                    Id = Guid.NewGuid(),
+                    QuestionId = question.Id,
+                    Text = column.Text,
+                    DisplayOrder = column.DisplayOrder
+                })
+                .ToList();
+
+            foreach (var row in rows)
+            {
+                question.MatrixRows.Add(row);
+            }
+
+            foreach (var column in columns)
+            {
+                question.MatrixColumns.Add(column);
+            }
+
+            // Map each row to its correct column.
+            foreach (var answer in request.MatrixAnswers!)
+            {
+                var matrixRow = rows[answer.RowIndex];
+
+                var correctColumn = columns[answer.CorrectColumnIndex];
+
+                _db.Set<QuestionMatrixAnswer>().Add(
+                    new QuestionMatrixAnswer
+                    {
+                        Id = Guid.NewGuid(),
+                        QuestionId = question.Id,
+                        MatrixRowId = matrixRow.Id,
+                        CorrectColumnId = correctColumn.Id
+                    });
+            }
         }
+
+        // Create Bow-Tie options.
+        if (request.Type == QuestionType.BowTie)
+        {
+            foreach (var option in request.BowTieOptions!)
+            {
+                question.BowTieOptions.Add(new BowTieOption
+                {
+                    Id = Guid.NewGuid(),
+                    QuestionId = question.Id,
+                    Category = option.Category,
+                    Text = option.Text,
+                    DisplayOrder = option.DisplayOrder,
+                    IsCorrect = option.IsCorrect
+                });
+            }
+        }
+
+        _db.Questions.Add(question);
+
+        await _db.SaveChangesAsync();
+
+        // Return student-safe option information.
+        var response = new QuestionResponse
+        {
+            Id = question.Id,
+            Type = question.Type,
+            Stem = question.Stem,
+            Difficulty = question.Difficulty,
+            Rationale = question.Rationale,
+            MaximumPoints = question.MaximumPoints,
+            ScoringMethod = question.ScoringMethod,
+            NumericCorrectAnswer = question.NumericCorrectAnswer,
+            NumericTolerance = question.NumericTolerance,
+
+            Options = question.Options
+                .OrderBy(o => o.DisplayOrder)
+                .Select(o => new QuestionOptionResponse
+                {
+                    Id = o.Id,
+                    Text = o.Text,
+                    DisplayOrder = o.DisplayOrder
+                })
+                .ToList(),
+
+            BowTieOptions = question.BowTieOptions
+                .OrderBy(o => o.Category)
+                .ThenBy(o => o.DisplayOrder)
+                .Select(o => new BowTieOptionExamResponse
+                {
+                    Id = o.Id,
+                    Category = o.Category,
+                    Text = o.Text,
+                    DisplayOrder = o.DisplayOrder
+                })
+                .ToList()
+        };
+
+        return CreatedAtAction(
+            nameof(GetQuestion),
+            new { id = question.Id },
+            response);
     }
 
-    _db.Questions.Add(question);
-
-    await _db.SaveChangesAsync();
-
-    var response = new QuestionResponse
-    {
-        Id = question.Id,
-        Type = question.Type,
-        Stem = question.Stem,
-        Difficulty = question.Difficulty,
-        Rationale = question.Rationale,
-        MaximumPoints = question.MaximumPoints,
-        ScoringMethod = question.ScoringMethod,
-        NumericCorrectAnswer = question.NumericCorrectAnswer,
-        NumericTolerance = question.NumericTolerance,
-        Options = question.Options
-            .OrderBy(o => o.DisplayOrder)
-            .Select(o => new QuestionOptionResponse
-            {
-                Id = o.Id,
-                Text = o.Text,
-                DisplayOrder = o.DisplayOrder
-            })
-            .ToList()
-    };
-
-    return CreatedAtAction(
-        nameof(GetQuestion),
-        new { id = question.Id },
-        response);
-}
-
-
+    // POST: api/questions/{id}/evaluate
+    // Evaluate an answer.
     [Authorize(Roles = "Admin,SuperAdmin")]
     [HttpPost("{id:guid}/evaluate")]
     public async Task<IActionResult> EvaluateAnswer(
@@ -286,7 +368,7 @@ public async Task<IActionResult> CreateQuestion(
         }
 
         var question = await _db.Questions
-        .FirstOrDefaultAsync(q => q.Id == id);
+            .FirstOrDefaultAsync(q => q.Id == id);
 
         if (question is null)
         {
@@ -310,5 +392,4 @@ public async Task<IActionResult> CreateQuestion(
 
         return Ok(result);
     }
-
 }
