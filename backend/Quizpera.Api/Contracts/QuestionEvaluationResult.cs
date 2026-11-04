@@ -11,6 +11,8 @@ public class QuestionEvaluationResult
 
     public List<Guid> SelectedRationaleOptionIds { get; set; } = new();
 
+    public List<MatrixAnswerRequest> MatrixAnswers { get; set; } = new();
+
     public decimal? NumericAnswer { get; set; }
 
     public bool IsCorrect { get; set; }

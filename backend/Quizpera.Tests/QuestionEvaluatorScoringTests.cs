@@ -949,6 +949,239 @@ public async Task MultipleResponse_ZeroOne_AwardsProportionalCredit(
     }
 
 
+    [Theory]
+[InlineData(QuestionScoringMethod.AllOrNothing, 4, 4)]
+[InlineData(QuestionScoringMethod.AllOrNothing, 2, 0)]
+[InlineData(QuestionScoringMethod.ZeroOne, 4, 4)]
+[InlineData(QuestionScoringMethod.ZeroOne, 2, 2)]
+[InlineData(QuestionScoringMethod.ZeroOne, 1, 1)]
+public async Task MatrixGrid_ReturnsExpectedScore(
+    QuestionScoringMethod scoringMethod,
+    int correctRows,
+    decimal expectedPoints)
+{
+    await using var db = CreateDb();
+
+    var question = CreateQuestion(
+        QuestionType.MatrixGrid,
+        maximumPoints: 4m);
+
+    question.ScoringMethod = scoringMethod;
+
+    var rows = Enumerable.Range(1, 4)
+        .Select(index => CreateMatrixRow(question.Id, index))
+        .ToList();
+
+    var columns = Enumerable.Range(1, 4)
+        .Select(index => CreateMatrixColumn(question.Id, index))
+        .ToList();
+
+    var correctAnswers = rows.Select((row, index) =>
+        new QuestionMatrixAnswer
+        {
+            Id = Guid.NewGuid(),
+            QuestionId = question.Id,
+            MatrixRowId = row.Id,
+            CorrectColumnId = columns[index].Id
+        }).ToList();
+
+    var submittedAnswers = rows.Select((row, index) =>
+        new MatrixAnswerRequest
+        {
+            MatrixRowId = row.Id,
+            SelectedColumnId = index < correctRows
+                ? columns[index].Id
+                : columns[(index + 1) % columns.Count].Id
+        }).ToList();
+
+    db.Questions.Add(question);
+    db.QuestionMatrixRows.AddRange(rows);
+    db.QuestionMatrixColumns.AddRange(columns);
+    db.QuestionMatrixAnswers.AddRange(correctAnswers);
+
+    await db.SaveChangesAsync();
+
+    var evaluator = new MatrixGridEvaluator(db);
+
+    var result = await evaluator.EvaluateAsync(
+        new StudentAnswerRequest
+        {
+            QuestionId = question.Id,
+            MatrixAnswers = submittedAnswers
+        });
+
+    Assert.NotNull(result);
+    Assert.Equal(expectedPoints, result.PointsEarned);
+    Assert.Equal(4m, result.MaximumPoints);
+    Assert.Equal(correctRows == 4, result.IsCorrect);
+    Assert.Equal(4, result.MatrixAnswers.Count);
+}
+
+[Fact]
+public async Task MatrixGrid_RejectsMissingRowAnswer()
+{
+    await using var db = CreateDb();
+
+    var (question, rows, columns) = await SeedMatrixQuestion(db);
+
+    var evaluator = new MatrixGridEvaluator(db);
+
+    var result = await evaluator.EvaluateAsync(
+        new StudentAnswerRequest
+        {
+            QuestionId = question.Id,
+            MatrixAnswers = rows.Take(1).Select((row, index) =>
+                new MatrixAnswerRequest
+                {
+                    MatrixRowId = row.Id,
+                    SelectedColumnId = columns[index].Id
+                }).ToList()
+        });
+
+    Assert.Null(result);
+}
+
+[Fact]
+public async Task MatrixGrid_RejectsDuplicateRowAnswer()
+{
+    await using var db = CreateDb();
+
+    var (question, rows, columns) = await SeedMatrixQuestion(db);
+
+    var evaluator = new MatrixGridEvaluator(db);
+
+    var result = await evaluator.EvaluateAsync(
+        new StudentAnswerRequest
+        {
+            QuestionId = question.Id,
+            MatrixAnswers =
+            [
+                new MatrixAnswerRequest
+                {
+                    MatrixRowId = rows[0].Id,
+                    SelectedColumnId = columns[0].Id
+                },
+                new MatrixAnswerRequest
+                {
+                    MatrixRowId = rows[0].Id,
+                    SelectedColumnId = columns[1].Id
+                }
+            ]
+        });
+
+    Assert.Null(result);
+}
+
+[Fact]
+public async Task MatrixGrid_RejectsForeignColumn()
+{
+    await using var db = CreateDb();
+
+    var (question, rows, columns) = await SeedMatrixQuestion(db);
+
+    var foreignColumn = CreateMatrixColumn(
+        Guid.NewGuid(),
+        1);
+
+    db.QuestionMatrixColumns.Add(foreignColumn);
+    await db.SaveChangesAsync();
+
+    var evaluator = new MatrixGridEvaluator(db);
+
+    var result = await evaluator.EvaluateAsync(
+        new StudentAnswerRequest
+        {
+            QuestionId = question.Id,
+            MatrixAnswers = rows.Select((row, index) =>
+                new MatrixAnswerRequest
+                {
+                    MatrixRowId = row.Id,
+                    SelectedColumnId = index == 0
+                        ? foreignColumn.Id
+                        : columns[index].Id
+                }).ToList()
+        });
+
+    Assert.Null(result);
+}
+
+[Fact]
+public async Task MatrixGrid_RejectsForeignRow()
+{
+    await using var db = CreateDb();
+
+    var (question, rows, columns) = await SeedMatrixQuestion(db);
+
+    var foreignRow = CreateMatrixRow(Guid.NewGuid(), 1);
+
+    db.QuestionMatrixRows.Add(foreignRow);
+    await db.SaveChangesAsync();
+
+    var evaluator = new MatrixGridEvaluator(db);
+
+    var result = await evaluator.EvaluateAsync(
+        new StudentAnswerRequest
+        {
+            QuestionId = question.Id,
+            MatrixAnswers = rows.Select((row, index) =>
+                new MatrixAnswerRequest
+                {
+                    MatrixRowId = index == 0
+                        ? foreignRow.Id
+                        : row.Id,
+                    SelectedColumnId = columns[index].Id
+                }).ToList()
+        });
+
+    Assert.Null(result);
+}
+
+[Fact]
+public async Task MatrixGrid_UnsupportedScoringMethod_Throws()
+{
+    await using var db = CreateDb();
+
+    var question = CreateQuestion(QuestionType.MatrixGrid);
+    question.ScoringMethod = QuestionScoringMethod.PlusMinus;
+
+    var rows = Enumerable.Range(1, 2)
+        .Select(index => CreateMatrixRow(question.Id, index))
+        .ToList();
+
+    var columns = Enumerable.Range(1, 2)
+        .Select(index => CreateMatrixColumn(question.Id, index))
+        .ToList();
+
+    db.Questions.Add(question);
+    db.QuestionMatrixRows.AddRange(rows);
+    db.QuestionMatrixColumns.AddRange(columns);
+
+    db.QuestionMatrixAnswers.AddRange(rows.Select((row, index) =>
+        new QuestionMatrixAnswer
+        {
+            Id = Guid.NewGuid(),
+            QuestionId = question.Id,
+            MatrixRowId = row.Id,
+            CorrectColumnId = columns[index].Id
+        }));
+
+    await db.SaveChangesAsync();
+
+    var evaluator = new MatrixGridEvaluator(db);
+
+    await Assert.ThrowsAsync<NotSupportedException>(() =>
+        evaluator.EvaluateAsync(
+            new StudentAnswerRequest
+            {
+                QuestionId = question.Id,
+                MatrixAnswers = rows.Select((row, index) =>
+                    new MatrixAnswerRequest
+                    {
+                        MatrixRowId = row.Id,
+                        SelectedColumnId = columns[index].Id
+                    }).ToList()
+            }));
+}
 
 [Fact]
 public async Task TrueFalse_UnsupportedScoringMethod_Throws()
@@ -1077,4 +1310,65 @@ public async Task OrderedResponse_UnsupportedScoringMethod_Throws()
             CorrectOrder = correctOrder
         };
     }
+
+    private static QuestionMatrixRow CreateMatrixRow(
+    Guid questionId,
+    int displayOrder)
+{
+    return new QuestionMatrixRow
+    {
+        Id = Guid.NewGuid(),
+        QuestionId = questionId,
+        Text = $"Row {displayOrder}",
+        DisplayOrder = displayOrder
+    };
+}
+
+private static QuestionMatrixColumn CreateMatrixColumn(
+    Guid questionId,
+    int displayOrder)
+{
+    return new QuestionMatrixColumn
+    {
+        Id = Guid.NewGuid(),
+        QuestionId = questionId,
+        Text = $"Column {displayOrder}",
+        DisplayOrder = displayOrder
+    };
+}
+
+private static async Task<(
+    Question Question,
+    List<QuestionMatrixRow> Rows,
+    List<QuestionMatrixColumn> Columns)> SeedMatrixQuestion(
+        QuizperaDbContext db)
+{
+    var question = CreateQuestion(QuestionType.MatrixGrid);
+
+    var rows = Enumerable.Range(1, 2)
+        .Select(index => CreateMatrixRow(question.Id, index))
+        .ToList();
+
+    var columns = Enumerable.Range(1, 2)
+        .Select(index => CreateMatrixColumn(question.Id, index))
+        .ToList();
+
+    db.Questions.Add(question);
+    db.QuestionMatrixRows.AddRange(rows);
+    db.QuestionMatrixColumns.AddRange(columns);
+
+    db.QuestionMatrixAnswers.AddRange(rows.Select((row, index) =>
+        new QuestionMatrixAnswer
+        {
+            Id = Guid.NewGuid(),
+            QuestionId = question.Id,
+            MatrixRowId = row.Id,
+            CorrectColumnId = columns[index].Id
+        }));
+
+    await db.SaveChangesAsync();
+
+    return (question, rows, columns);
+}
+
 }

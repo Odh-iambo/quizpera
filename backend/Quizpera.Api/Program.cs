@@ -137,6 +137,7 @@ builder.Services.AddScoped<QuestionValidationService>();
 
 builder.Services.AddScoped<IQuestionEvaluator, SingleChoiceEvaluator>();
 builder.Services.AddScoped<IQuestionEvaluator, MultipleResponseEvaluator>();
+builder.Services.AddScoped<IQuestionEvaluator, MatrixGridEvaluator>();
 builder.Services.AddScoped<IQuestionEvaluator, NumericEntryEvaluator>();
 builder.Services.AddScoped<IQuestionEvaluator, OrderedResponseEvaluator>();
 builder.Services.AddScoped<IQuestionEvaluator, TrueFalseEvaluator>();

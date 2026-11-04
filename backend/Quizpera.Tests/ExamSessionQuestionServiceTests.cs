@@ -139,6 +139,172 @@ public async Task GetQuestionsAsync_RestoresSavedAnswerWithoutExposingAnswerKey(
 }
 
 
+[Fact]
+public async Task GetQuestionsAsync_RestoresSavedMatrixAnswersWithoutExposingAnswerKey()
+{
+    await using var db = CreateDbContext();
+
+    var fixture = await CreateFixtureAsync(db, includeProgress: true);
+
+    fixture.OrdinaryQuestion.Type = QuestionType.MatrixGrid;
+
+    var rowA = new QuestionMatrixRow
+    {
+        Id = Guid.NewGuid(),
+        QuestionId = fixture.OrdinaryQuestion.Id,
+        Text = "Airway",
+        DisplayOrder = 1
+    };
+
+    var rowB = new QuestionMatrixRow
+    {
+        Id = Guid.NewGuid(),
+        QuestionId = fixture.OrdinaryQuestion.Id,
+        Text = "Breathing",
+        DisplayOrder = 2
+    };
+
+    var columnA = new QuestionMatrixColumn
+    {
+        Id = Guid.NewGuid(),
+        QuestionId = fixture.OrdinaryQuestion.Id,
+        Text = "Normal",
+        DisplayOrder = 1
+    };
+
+    var columnB = new QuestionMatrixColumn
+    {
+        Id = Guid.NewGuid(),
+        QuestionId = fixture.OrdinaryQuestion.Id,
+        Text = "Abnormal",
+        DisplayOrder = 2
+    };
+
+    db.QuestionMatrixRows.AddRange(rowA, rowB);
+    db.QuestionMatrixColumns.AddRange(columnA, columnB);
+
+
+    db.QuestionMatrixAnswers.AddRange(
+    new QuestionMatrixAnswer
+    {
+        Id = Guid.NewGuid(),
+        QuestionId = fixture.OrdinaryQuestion.Id,
+        MatrixRowId = rowA.Id,
+        CorrectColumnId = columnA.Id
+    },
+    new QuestionMatrixAnswer
+    {
+        Id = Guid.NewGuid(),
+        QuestionId = fixture.OrdinaryQuestion.Id,
+        MatrixRowId = rowB.Id,
+        CorrectColumnId = columnB.Id
+    });
+
+    var savedResponse = new ExamSessionResponse
+    {
+        Id = Guid.NewGuid(),
+        ExamSessionId = fixture.Session.Id,
+        QuestionId = fixture.OrdinaryQuestion.Id,
+        AnsweredAt = DateTime.UtcNow
+    };
+
+    savedResponse.MatrixAnswers.Add(
+    new ExamSessionMatrixAnswer
+    {
+        ExamSessionResponseId = savedResponse.Id,
+        QuestionId = fixture.OrdinaryQuestion.Id,
+        MatrixRowId = rowA.Id,
+        SelectedColumnId = columnB.Id
+    });
+
+savedResponse.MatrixAnswers.Add(
+    new ExamSessionMatrixAnswer
+    {
+        ExamSessionResponseId = savedResponse.Id,
+        QuestionId = fixture.OrdinaryQuestion.Id,
+        MatrixRowId = rowB.Id,
+        SelectedColumnId = columnA.Id
+    });
+
+    db.ExamSessionResponses.Add(savedResponse);
+
+    await db.SaveChangesAsync();
+
+    var service = new ExamSessionQuestionService(db);
+
+    var result = await service.GetQuestionsAsync(fixture.Session.Id);
+
+    Assert.NotNull(result);
+
+    var question = Assert.Single(
+        result.Questions,
+        q => q.QuestionId == fixture.OrdinaryQuestion.Id);
+
+    Assert.NotNull(question.SavedAnswer);
+
+
+    // Verify the student receives the MatrixGrid structure.
+Assert.Equal(2, question.MatrixRows.Count);
+Assert.Equal(2, question.MatrixColumns.Count);
+
+// Verify rows are returned in display order.
+Assert.Equal(
+    new[] { rowA.Id, rowB.Id },
+    question.MatrixRows.Select(row => row.Id).ToArray());
+
+// Verify columns are returned in display order.
+Assert.Equal(
+    new[] { columnA.Id, columnB.Id },
+    question.MatrixColumns.Select(column => column.Id).ToArray());
+
+// Verify the correct-answer mapping is not part of the student DTO.
+var questionProperties = typeof(ExamSessionQuestionResponse)
+    .GetProperties()
+    .Select(property => property.Name)
+    .ToHashSet();
+
+Assert.DoesNotContain("MatrixAnswers", questionProperties);
+Assert.DoesNotContain("CorrectColumnId", questionProperties);
+
+var rowProperties = typeof(ExamSessionQuestionMatrixRowResponse)
+    .GetProperties()
+    .Select(property => property.Name)
+    .ToHashSet();
+
+var columnProperties = typeof(ExamSessionQuestionMatrixColumnResponse)
+    .GetProperties()
+    .Select(property => property.Name)
+    .ToHashSet();
+
+Assert.DoesNotContain("CorrectColumnId", rowProperties);
+Assert.DoesNotContain("CorrectColumnId", columnProperties);
+
+    Assert.Equal(2, question.SavedAnswer.MatrixAnswers.Count);
+
+    Assert.Contains(
+        question.SavedAnswer.MatrixAnswers,
+        answer =>
+            answer.MatrixRowId == rowA.Id &&
+            answer.SelectedColumnId == columnB.Id);
+
+    Assert.Contains(
+        question.SavedAnswer.MatrixAnswers,
+        answer =>
+            answer.MatrixRowId == rowB.Id &&
+            answer.SelectedColumnId == columnA.Id);
+
+    var savedAnswerProperties = typeof(ExamSessionSavedAnswerResponse)
+        .GetProperties()
+        .Select(property => property.Name)
+        .ToHashSet();
+
+    Assert.DoesNotContain("CorrectColumnId", savedAnswerProperties);
+    Assert.DoesNotContain("IsCorrect", savedAnswerProperties);
+    Assert.DoesNotContain("PointsEarned", savedAnswerProperties);
+    Assert.DoesNotContain("MaximumPoints", savedAnswerProperties);
+}
+
+
 
     [Fact]
 public async Task GetQuestionsAsync_HidesQuestionWhenAnotherCaseMappingIsLocked()

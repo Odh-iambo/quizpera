@@ -13,4 +13,7 @@ public class StudentAnswerRequest
     public List<Guid> OrderedOptionIds { get; set; } = new();
 
     public decimal? NumericAnswer { get; set; }
+
+    public List<MatrixAnswerRequest> MatrixAnswers { get; set; } = new();
+
 }

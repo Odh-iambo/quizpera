@@ -7,6 +7,28 @@ public class ExamSessionQuestionsResponse
     public string Status { get; set; } = null!;
 
     public List<ExamSessionQuestionResponse> Questions { get; set; } = [];
+
+
+}
+
+
+
+public class ExamSessionQuestionMatrixRowResponse
+{
+    public Guid Id { get; set; }
+
+    public string Text { get; set; } = null!;
+
+    public int DisplayOrder { get; set; }
+}
+
+public class ExamSessionQuestionMatrixColumnResponse
+{
+    public Guid Id { get; set; }
+
+    public string Text { get; set; } = null!;
+
+    public int DisplayOrder { get; set; }
 }
 
 public class ExamSessionQuestionResponse
@@ -22,6 +44,11 @@ public class ExamSessionQuestionResponse
     public string Difficulty { get; set; } = null!;
 
     public List<ExamSessionQuestionOptionResponse> Options { get; set; } = [];
+
+
+    public List<ExamSessionQuestionMatrixRowResponse> MatrixRows { get; set; } = [];
+
+    public List<ExamSessionQuestionMatrixColumnResponse> MatrixColumns { get; set; } = [];
 
     public ExamSessionSavedAnswerResponse? SavedAnswer { get; set; }
 }
@@ -42,6 +69,9 @@ public class ExamSessionSavedAnswerResponse
     public List<Guid> SelectedOptionIds { get; set; } = [];
 
     public List<int?> SelectedOrders { get; set; } = [];
+
+
+    public List<ExamSessionSavedMatrixAnswerResponse> MatrixAnswers { get; set; } = [];
 
     public decimal? NumericAnswer { get; set; }
 

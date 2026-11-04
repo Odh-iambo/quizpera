@@ -131,91 +131,144 @@ public class QuestionsController : ControllerBase
     }
 
     [Authorize(Roles = "Admin,SuperAdmin")]
-    [HttpPost]
-    public async Task<IActionResult> CreateQuestion(
-        CreateQuestionRequest request)
-    {
-        var errors = _validator.Validate(request);
-
-        if (errors.Count > 0)
-        {
-            return BadRequest(new
-            {
-                errors
-            });
-        }
-
-        var relationshipErrors =
-            await _questionValidationService.ValidateAsync(request);
-
-        if (relationshipErrors.Count > 0)
-        {
-            return BadRequest(new
-            {
-                errors = relationshipErrors
-            });
-        }
-
-        var question = new Question
+[HttpPost]
+public async Task<IActionResult> CreateQuestion(
+    CreateQuestionRequest request)
 {
-    Id = Guid.NewGuid(),
-    Type = request.Type,
-    Stem = request.Stem,
-    ExamProgramId = request.ExamProgramId,
-    DomainId = request.DomainId,
-    SubjectId = request.SubjectId,
-    TopicId = request.TopicId,
-    ClientNeedId = request.ClientNeedId,
-    Difficulty = request.Difficulty,
-    MaximumPoints = request.MaximumPoints,
-    ScoringMethod = request.ScoringMethod,
-    Rationale = request.Rationale,
-    NumericCorrectAnswer = request.NumericCorrectAnswer,
-    NumericTolerance = request.NumericTolerance
-};
+    var errors = _validator.Validate(request);
 
-        foreach (var option in request.Options)
+    if (errors.Count > 0)
+    {
+        return BadRequest(new
         {
-            question.Options.Add(new QuestionOption
+            errors
+        });
+    }
+
+    var relationshipErrors =
+        await _questionValidationService.ValidateAsync(request);
+
+    if (relationshipErrors.Count > 0)
+    {
+        return BadRequest(new
+        {
+            errors = relationshipErrors
+        });
+    }
+
+    var question = new Question
+    {
+        Id = Guid.NewGuid(),
+        Type = request.Type,
+        Stem = request.Stem,
+        ExamProgramId = request.ExamProgramId,
+        DomainId = request.DomainId,
+        SubjectId = request.SubjectId,
+        TopicId = request.TopicId,
+        ClientNeedId = request.ClientNeedId,
+        Difficulty = request.Difficulty,
+        MaximumPoints = request.MaximumPoints,
+        ScoringMethod = request.ScoringMethod,
+        Rationale = request.Rationale,
+        NumericCorrectAnswer = request.NumericCorrectAnswer,
+        NumericTolerance = request.NumericTolerance
+    };
+
+    // Create conventional options for non-Matrix questions.
+    foreach (var option in request.Options ?? [])
+    {
+        question.Options.Add(new QuestionOption
+        {
+            Id = Guid.NewGuid(),
+            Text = option.Text,
+            DisplayOrder = option.DisplayOrder,
+            IsCorrect = option.IsCorrect
+        });
+    }
+
+    // Create Matrix/Grid rows and columns.
+    if (request.Type == QuestionType.MatrixGrid)
+    {
+        var rows = request.MatrixRows!
+            .Select(row => new QuestionMatrixRow
             {
                 Id = Guid.NewGuid(),
-                Text = option.Text,
-                DisplayOrder = option.DisplayOrder,
-                IsCorrect = option.IsCorrect
-            });
+                QuestionId = question.Id,
+                Text = row.Text,
+                DisplayOrder = row.DisplayOrder
+            })
+            .ToList();
+
+        var columns = request.MatrixColumns!
+            .Select(column => new QuestionMatrixColumn
+            {
+                Id = Guid.NewGuid(),
+                QuestionId = question.Id,
+                Text = column.Text,
+                DisplayOrder = column.DisplayOrder
+            })
+            .ToList();
+
+        foreach (var row in rows)
+        {
+            question.MatrixRows.Add(row);
         }
 
-        _db.Questions.Add(question);
-
-        await _db.SaveChangesAsync();
-
-        var response = new QuestionResponse
+        foreach (var column in columns)
         {
-            Id = question.Id,
-            Type = question.Type,
-            Stem = question.Stem,
-            Difficulty = question.Difficulty,
-            Rationale = question.Rationale,
-            MaximumPoints = question.MaximumPoints,
-            ScoringMethod = question.ScoringMethod,
-            NumericCorrectAnswer = question.NumericCorrectAnswer,
-            NumericTolerance = question.NumericTolerance,
-            Options = question.Options
-                .OrderBy(o => o.DisplayOrder)
-                .Select(o => new QuestionOptionResponse
-                {
-                    Id = o.Id,
-                    Text = o.Text,
-                    DisplayOrder = o.DisplayOrder
-                })
-                .ToList()
-        };
+            question.MatrixColumns.Add(column);
+        }
 
-        return CreatedAtAction(
-            nameof(GetQuestion),
-            new { id = question.Id },
-            response);
+        // Map each row to its correct column.
+        foreach (var answer in request.MatrixAnswers!)
+        {
+            var matrixRow = rows[answer.RowIndex];
+
+            var correctColumn = columns[answer.CorrectColumnIndex];
+
+            _db.Set<QuestionMatrixAnswer>().Add(
+                new QuestionMatrixAnswer
+                {
+                    Id = Guid.NewGuid(),
+                    QuestionId = question.Id,
+                    MatrixRowId = matrixRow.Id,
+                    CorrectColumnId = correctColumn.Id
+                });
+        }
     }
+
+    _db.Questions.Add(question);
+
+    await _db.SaveChangesAsync();
+
+    var response = new QuestionResponse
+    {
+        Id = question.Id,
+        Type = question.Type,
+        Stem = question.Stem,
+        Difficulty = question.Difficulty,
+        Rationale = question.Rationale,
+        MaximumPoints = question.MaximumPoints,
+        ScoringMethod = question.ScoringMethod,
+        NumericCorrectAnswer = question.NumericCorrectAnswer,
+        NumericTolerance = question.NumericTolerance,
+        Options = question.Options
+            .OrderBy(o => o.DisplayOrder)
+            .Select(o => new QuestionOptionResponse
+            {
+                Id = o.Id,
+                Text = o.Text,
+                DisplayOrder = o.DisplayOrder
+            })
+            .ToList()
+    };
+
+    return CreatedAtAction(
+        nameof(GetQuestion),
+        new { id = question.Id },
+        response);
+}
+
 
     [Authorize(Roles = "Admin,SuperAdmin")]
     [HttpPost("{id:guid}/evaluate")]

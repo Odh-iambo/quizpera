@@ -7,5 +7,7 @@ public enum QuestionType
     TrueFalse,
     OrderedResponse,
     NumericEntry,
-    MatrixGrid = 5
+    MatrixGrid = 5,
+
+    BowTie = 6
 }

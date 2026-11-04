@@ -19,6 +19,12 @@ public class QuizperaDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<QuestionOption> QuestionOptions => Set<QuestionOption>();
 
+    public DbSet<QuestionMatrixRow> QuestionMatrixRows => Set<QuestionMatrixRow>();
+
+    public DbSet<QuestionMatrixColumn> QuestionMatrixColumns => Set<QuestionMatrixColumn>();
+
+    public DbSet<QuestionMatrixAnswer> QuestionMatrixAnswers => Set<QuestionMatrixAnswer>();
+
     public DbSet<ExamProgram> ExamPrograms => Set<ExamProgram>();
 
     public DbSet<QuestionDomain> Domains => Set<QuestionDomain>();
@@ -51,12 +57,62 @@ public DbSet<ClinicalCaseQuestion> ClinicalCaseQuestions =>
 
 public DbSet<ExamSessionCaseProgress> ExamSessionCaseProgress =>
     Set<ExamSessionCaseProgress>();
- 
+
  public DbSet<QuestionRationaleOption> QuestionRationaleOptions
     => Set<QuestionRationaleOption>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<ExamSessionResponseOption>()
+    .ToTable("ExamSessionResponseOptions");
+
+    modelBuilder.Entity<ExamSessionResponseRationaleOption>()
+    .ToTable("ExamSessionResponseRationaleOptions");
+
+
+    modelBuilder.Entity<ClinicalCase>()
+    .HasOne(c => c.ExamProgram)
+    .WithMany(p => p.ClinicalCases)
+    .HasForeignKey(c => c.ExamProgramId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+modelBuilder.Entity<ClinicalCase>()
+    .HasOne(c => c.Domain)
+    .WithMany()
+    .HasForeignKey(c => c.DomainId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+modelBuilder.Entity<ClinicalCase>()
+    .HasOne(c => c.Subject)
+    .WithMany()
+    .HasForeignKey(c => c.SubjectId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+
+        modelBuilder.Entity<QuestionMatrixRow>()
+    .HasOne(row => row.Question)
+    .WithMany(question => question.MatrixRows)
+    .HasForeignKey(row => row.QuestionId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+modelBuilder.Entity<QuestionMatrixColumn>()
+    .HasOne(column => column.Question)
+    .WithMany(question => question.MatrixColumns)
+    .HasForeignKey(column => column.QuestionId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+modelBuilder.Entity<QuestionMatrixAnswer>()
+    .HasOne(answer => answer.MatrixRow)
+    .WithMany()
+    .HasForeignKey(answer => answer.MatrixRowId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+modelBuilder.Entity<QuestionMatrixAnswer>()
+    .HasOne(answer => answer.CorrectColumn)
+    .WithMany()
+    .HasForeignKey(answer => answer.CorrectColumnId)
+    .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<ExamSessionResponseOption>()
     .HasKey(o => new
@@ -123,13 +179,49 @@ modelBuilder.Entity<ExamSessionMatrixAnswer>()
     .OnDelete(DeleteBehavior.Restrict);
 
 
-        modelBuilder.Entity<ClinicalCaseQuestion>()
+       modelBuilder.Entity<ClinicalCaseQuestion>()
     .HasKey(cq => new
     {
         cq.ClinicalCaseId,
-        cq.QuestionId,
-        cq.ClinicalCaseStageId
+        cq.QuestionId
     });
+
+modelBuilder.Entity<ClinicalCaseQuestion>()
+    .HasOne(cq => cq.ClinicalCaseStage)
+    .WithMany(stage => stage.Questions)
+    .HasForeignKey(cq => new
+    {
+        cq.ClinicalCaseId,
+        cq.ClinicalCaseStageId
+    })
+    .HasPrincipalKey(stage => new
+    {
+        stage.ClinicalCaseId,
+        stage.Id
+    })
+    .OnDelete(DeleteBehavior.Restrict);
+
+    modelBuilder.Entity<ClinicalCaseQuestion>()
+    .HasOne(cq => cq.Question)
+    .WithMany()
+    .HasForeignKey(cq => cq.QuestionId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+modelBuilder.Entity<ClinicalCaseQuestion>()
+    .HasIndex(cq => new
+    {
+        cq.ClinicalCaseId,
+        cq.DisplayOrder
+    })
+    .IsUnique();
+
+    modelBuilder.Entity<ClinicalCaseStage>()
+    .HasIndex(stage => new
+    {
+        stage.ClinicalCaseId,
+        stage.DisplayOrder
+    })
+    .IsUnique();
 
 
 
@@ -138,6 +230,29 @@ modelBuilder.Entity<ExamSessionMatrixAnswer>()
     {
         p.ExamSessionId,
         p.ClinicalCaseId
+    });
+
+
+    modelBuilder.Entity<ExamSessionCaseProgress>()
+    .HasOne(progress => progress.CurrentStage)
+    .WithMany()
+    .HasForeignKey(progress => new
+    {
+        progress.ClinicalCaseId,
+        progress.CurrentStageId
+    })
+    .HasPrincipalKey(stage => new
+    {
+        stage.ClinicalCaseId,
+        stage.Id
+    })
+    .OnDelete(DeleteBehavior.Restrict);
+
+    modelBuilder.Entity<QuestionRationaleOption>()
+    .HasIndex(option => new
+    {
+        option.QuestionId,
+        option.DisplayOrder
     });
 
 

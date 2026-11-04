@@ -343,7 +343,7 @@ private static CreateQuestionRequest CreateTrueFalseRequest(
             ]
         };
 
-        
+
     }
 
 
@@ -430,5 +430,246 @@ public void Validate_NumericEntryWithOptions_ReturnsError()
         errors["options"]);
 }
 
-    
+    [Fact]
+    public void Validate_ValidMatrixGridQuestion_ReturnsNoErrors()
+    {
+        var request = CreateMatrixGridRequest();
+
+        var errors = _validator.Validate(request);
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void Validate_MatrixGridWithInsufficientRows_ReturnsError()
+    {
+        var request = CreateMatrixGridRequest();
+        request.MatrixRows = [request.MatrixRows[0]];
+        request.MatrixAnswers = [request.MatrixAnswers[0]];
+
+        var errors = _validator.Validate(request);
+
+        Assert.Contains("matrixRows", errors.Keys);
+    }
+
+    [Fact]
+    public void Validate_MatrixGridWithInsufficientColumns_ReturnsError()
+    {
+        var request = CreateMatrixGridRequest();
+        request.MatrixColumns = [request.MatrixColumns[0]];
+
+        var errors = _validator.Validate(request);
+
+        Assert.Contains("matrixColumns", errors.Keys);
+    }
+
+    [Fact]
+    public void Validate_MatrixGridWithEmptyRowText_ReturnsError()
+    {
+        var request = CreateMatrixGridRequest();
+        request.MatrixRows[0].Text = " ";
+
+        var errors = _validator.Validate(request);
+
+        Assert.Contains("matrixRows", errors.Keys);
+        Assert.Contains(
+            "Every matrix row must contain text.",
+            errors["matrixRows"]);
+    }
+
+    [Fact]
+    public void Validate_MatrixGridWithEmptyColumnText_ReturnsError()
+    {
+        var request = CreateMatrixGridRequest();
+        request.MatrixColumns[0].Text = "";
+
+        var errors = _validator.Validate(request);
+
+        Assert.Contains("matrixColumns", errors.Keys);
+        Assert.Contains(
+            "Every matrix column must contain text.",
+            errors["matrixColumns"]);
+    }
+
+    [Fact]
+    public void Validate_MatrixGridWithMissingAnswerMapping_ReturnsError()
+    {
+        var request = CreateMatrixGridRequest();
+        request.MatrixAnswers.RemoveAt(1);
+
+        var errors = _validator.Validate(request);
+
+        Assert.Contains("matrixAnswers", errors.Keys);
+    }
+
+    [Fact]
+    public void Validate_MatrixGridWithDuplicateRowMapping_ReturnsError()
+    {
+        var request = CreateMatrixGridRequest();
+        request.MatrixAnswers[1].RowIndex = 0;
+
+        var errors = _validator.Validate(request);
+
+        Assert.Contains("matrixAnswers", errors.Keys);
+    }
+
+    [Fact]
+    public void Validate_MatrixGridWithInvalidRowIndex_ReturnsError()
+    {
+        var request = CreateMatrixGridRequest();
+        request.MatrixAnswers[0].RowIndex = 5;
+
+        var errors = _validator.Validate(request);
+
+        Assert.Contains("matrixAnswers", errors.Keys);
+        Assert.Contains(
+            "A matrix answer contains an invalid row index.",
+            errors["matrixAnswers"]);
+    }
+
+    [Fact]
+    public void Validate_MatrixGridWithInvalidColumnIndex_ReturnsError()
+    {
+        var request = CreateMatrixGridRequest();
+        request.MatrixAnswers[0].CorrectColumnIndex = 5;
+
+        var errors = _validator.Validate(request);
+
+        Assert.Contains("matrixAnswers", errors.Keys);
+        Assert.Contains(
+            "A matrix answer contains an invalid correct-column index.",
+            errors["matrixAnswers"]);
+    }
+
+    [Fact]
+    public void Validate_MatrixGridWithDuplicateRowDisplayOrders_ReturnsError()
+    {
+        var request = CreateMatrixGridRequest();
+        request.MatrixRows[1].DisplayOrder =
+            request.MatrixRows[0].DisplayOrder;
+
+        var errors = _validator.Validate(request);
+
+        Assert.Contains("matrixRows", errors.Keys);
+    }
+
+    [Fact]
+    public void Validate_MatrixGridWithDuplicateColumnDisplayOrders_ReturnsError()
+    {
+        var request = CreateMatrixGridRequest();
+        request.MatrixColumns[1].DisplayOrder =
+            request.MatrixColumns[0].DisplayOrder;
+
+        var errors = _validator.Validate(request);
+
+        Assert.Contains("matrixColumns", errors.Keys);
+    }
+
+    [Fact]
+    public void Validate_MatrixGridWithConventionalOptions_ReturnsError()
+    {
+        var request = CreateMatrixGridRequest();
+
+        request.Options =
+        [
+            new CreateQuestionOptionRequest
+            {
+                Text = "Option A",
+                DisplayOrder = 1
+            }
+        ];
+
+        var errors = _validator.Validate(request);
+
+        Assert.Contains("options", errors.Keys);
+    }
+
+    [Fact]
+    public void Validate_MatrixGridWithPlusMinusScoring_ReturnsError()
+    {
+        var request = CreateMatrixGridRequest();
+        request.ScoringMethod = QuestionScoringMethod.PlusMinus;
+
+        var errors = _validator.Validate(request);
+
+        Assert.Contains("scoringMethod", errors.Keys);
+    }
+
+    [Fact]
+    public void Validate_NonMatrixQuestionWithMatrixData_ReturnsError()
+    {
+        var request = CreateRequest(
+            QuestionType.SingleChoice,
+            correctOptionCount: 1);
+
+        request.MatrixRows =
+        [
+            new CreateQuestionMatrixRowRequest
+            {
+                Text = "Row 1",
+                DisplayOrder = 1
+            }
+        ];
+
+        var errors = _validator.Validate(request);
+
+        Assert.Contains("matrixRows", errors.Keys);
+    }
+
+    private static CreateQuestionRequest CreateMatrixGridRequest()
+    {
+        return new CreateQuestionRequest
+        {
+            Type = QuestionType.MatrixGrid,
+            Stem = "Identify the appropriate nursing interventions.",
+            MaximumPoints = 2,
+            ScoringMethod = QuestionScoringMethod.AllOrNothing,
+            Options = [],
+
+            MatrixRows =
+            [
+                new CreateQuestionMatrixRowRequest
+                {
+                    Text = "Assess vital signs",
+                    DisplayOrder = 1
+                },
+                new CreateQuestionMatrixRowRequest
+                {
+                    Text = "Administer medication",
+                    DisplayOrder = 2
+                }
+            ],
+
+            MatrixColumns =
+            [
+                new CreateQuestionMatrixColumnRequest
+                {
+                    Text = "Appropriate",
+                    DisplayOrder = 1
+                },
+                new CreateQuestionMatrixColumnRequest
+                {
+                    Text = "Not appropriate",
+                    DisplayOrder = 2
+                }
+            ],
+
+            MatrixAnswers =
+            [
+                new CreateQuestionMatrixAnswerRequest
+                {
+                    RowIndex = 0,
+                    CorrectColumnIndex = 0
+                },
+                new CreateQuestionMatrixAnswerRequest
+                {
+                    RowIndex = 1,
+                    CorrectColumnIndex = 1
+                }
+            ]
+        };
+    }
+
+
+
 }

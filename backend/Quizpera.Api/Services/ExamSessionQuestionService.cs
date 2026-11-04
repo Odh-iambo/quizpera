@@ -36,7 +36,11 @@ public class ExamSessionQuestionService
         var examQuestions = await _db.ExamQuestions
             .Where(eq => eq.ExamId == session.ExamId)
             .Include(eq => eq.Question)
-                .ThenInclude(q => q.Options)
+             .ThenInclude(q => q.Options)
+            .Include(eq => eq.Question)
+            .ThenInclude(q => q.MatrixRows)
+                .Include(eq => eq.Question)
+            .ThenInclude(q => q.MatrixColumns)
             .OrderBy(eq => eq.DisplayOrder)
             .ThenBy(eq => eq.QuestionId)
             .ToListAsync();
@@ -55,9 +59,10 @@ public class ExamSessionQuestionService
         }
 
         var savedResponses = await _db.ExamSessionResponses
-            .Where(r => r.ExamSessionId == sessionId)
-            .Include(r => r.SelectedOptions)
-            .ToDictionaryAsync(r => r.QuestionId);
+    .Where(r => r.ExamSessionId == sessionId)
+    .Include(r => r.SelectedOptions)
+    .Include(r => r.MatrixAnswers)
+    .ToDictionaryAsync(r => r.QuestionId);
 
         var questions = accessibleQuestions
             .Select(eq =>
@@ -73,6 +78,25 @@ public class ExamSessionQuestionService
                     Type = eq.Question.Type.ToString(),
                     Stem = eq.Question.Stem,
                     Difficulty = eq.Question.Difficulty.ToString(),
+                    MatrixRows = eq.Question.MatrixRows
+                        .OrderBy(row => row.DisplayOrder)
+                         .Select(row => new ExamSessionQuestionMatrixRowResponse
+                 {
+                           Id = row.Id,
+                            Text = row.Text,
+                            DisplayOrder = row.DisplayOrder
+                        })
+                        .ToList(),
+
+                    MatrixColumns = eq.Question.MatrixColumns
+                        .OrderBy(column => column.DisplayOrder)
+                        .Select(column => new ExamSessionQuestionMatrixColumnResponse
+                        {
+                            Id = column.Id,
+                            Text = column.Text,
+                            DisplayOrder = column.DisplayOrder
+                        })
+                        .ToList(),
 
                     Options = eq.Question.Options
                         .OrderBy(o => o.DisplayOrder)
@@ -88,6 +112,8 @@ public class ExamSessionQuestionService
                 };
             })
             .ToList();
+
+
 
         return new ExamSessionQuestionsResponse
         {
@@ -132,7 +158,16 @@ public class ExamSessionQuestionService
                 .Select(o => o.SelectedOrder)
                 .ToList(),
             NumericAnswer = response.NumericAnswer,
+
+            MatrixAnswers = response.MatrixAnswers
+    .Select(answer => new ExamSessionSavedMatrixAnswerResponse
+    {
+        MatrixRowId = answer.MatrixRowId,
+        SelectedColumnId = answer.SelectedColumnId
+    })
+    .ToList(),
             AnsweredAt = response.AnsweredAt
+
         };
     }
 }

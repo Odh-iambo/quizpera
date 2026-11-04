@@ -311,5 +311,92 @@ public sealed class QuestionScoringConfigurationIntegrationTests : IAsyncLifetim
         using var response = await _client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
     }
+
+
+    [Fact]
+public async Task CreateQuestion_MatrixGrid_PersistsRowsColumnsAndCorrectMappings()
+{
+    using var request = CreateAdminRequest(
+        HttpMethod.Post,
+        "/api/questions");
+
+    request.Content = JsonContent.Create(new
+    {
+        type = "MatrixGrid",
+        stem = "Identify appropriate nursing interventions.",
+        examProgramId = _programId,
+        domainId = _domainId,
+        subjectId = _subjectId,
+        topicId = (Guid?)null,
+        clientNeedId = (Guid?)null,
+        difficulty = "Medium",
+        rationale = "Evaluate each intervention.",
+        maximumPoints = 2m,
+        scoringMethod = "AllOrNothing",
+        options = Array.Empty<object>(),
+
+        matrixRows = new[]
+        {
+            new { text = "Assess vital signs", displayOrder = 1 },
+            new { text = "Administer medication", displayOrder = 2 }
+        },
+
+        matrixColumns = new[]
+        {
+            new { text = "Appropriate", displayOrder = 1 },
+            new { text = "Not appropriate", displayOrder = 2 }
+        },
+
+        matrixAnswers = new[]
+        {
+            new { rowIndex = 0, correctColumnIndex = 0 },
+            new { rowIndex = 1, correctColumnIndex = 1 }
+        }
+    });
+
+    using var response = await _client.SendAsync(request);
+
+    Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+    using var document = JsonDocument.Parse(
+        await response.Content.ReadAsStringAsync());
+
+    var questionId = document.RootElement
+        .GetProperty("id")
+        .GetGuid();
+
+    await using var scope = _factory.Services.CreateAsyncScope();
+
+    var db = scope.ServiceProvider.GetRequiredService<QuizperaDbContext>();
+
+    var rows = await db.Set<QuestionMatrixRow>()
+        .Where(x => x.QuestionId == questionId)
+        .OrderBy(x => x.DisplayOrder)
+        .ToListAsync();
+
+    var columns = await db.Set<QuestionMatrixColumn>()
+        .Where(x => x.QuestionId == questionId)
+        .OrderBy(x => x.DisplayOrder)
+        .ToListAsync();
+
+    var answers = await db.Set<QuestionMatrixAnswer>()
+        .Where(x => x.QuestionId == questionId)
+        .ToListAsync();
+
+    Assert.Equal(2, rows.Count);
+    Assert.Equal(2, columns.Count);
+    Assert.Equal(2, answers.Count);
+
+    Assert.Equal(
+        columns[0].Id,
+        answers.Single(x => x.MatrixRowId == rows[0].Id).CorrectColumnId);
+
+    Assert.Equal(
+        columns[1].Id,
+        answers.Single(x => x.MatrixRowId == rows[1].Id).CorrectColumnId);
+}
+
+
 }

@@ -74,6 +74,12 @@ public class CreateQuestionRequestValidator
                 QuestionScoringMethod.AllOrNothing
             ],
 
+            QuestionType.MatrixGrid =>
+            [
+                QuestionScoringMethod.AllOrNothing,
+                QuestionScoringMethod.ZeroOne
+            ],
+
             _ => Array.Empty<QuestionScoringMethod>()
         };
 
@@ -114,6 +120,15 @@ public class CreateQuestionRequestValidator
                     "Numeric Entry questions must not contain selectable options.");
             }
         }
+        else if (request.Type == QuestionType.MatrixGrid)
+        {
+            if (options is { Count: > 0 })
+            {
+                AddError(
+                    "options",
+                    "Matrix/Grid questions must not contain conventional options.");
+            }
+        }
         else
         {
             if (options is null || options.Count < 2)
@@ -144,7 +159,8 @@ public class CreateQuestionRequestValidator
             }
         }
 
-        if (options is not null)
+        if (options is not null &&
+            request.Type != QuestionType.MatrixGrid)
         {
             var correctOptionCount =
                 options.Count(option => option.IsCorrect);
@@ -199,6 +215,120 @@ public class CreateQuestionRequestValidator
                     }
 
                     break;
+            }
+        }
+
+        // Matrix/Grid validation
+        if (request.Type == QuestionType.MatrixGrid)
+        {
+            var rows = request.MatrixRows ?? [];
+            var columns = request.MatrixColumns ?? [];
+            var answers = request.MatrixAnswers ?? [];
+
+            if (rows.Count < 2)
+            {
+                AddError(
+                    "matrixRows",
+                    "A Matrix/Grid question must contain at least two rows.");
+            }
+
+            if (columns.Count < 2)
+            {
+                AddError(
+                    "matrixColumns",
+                    "A Matrix/Grid question must contain at least two columns.");
+            }
+
+            if (rows.Any(row => string.IsNullOrWhiteSpace(row.Text)))
+            {
+                AddError(
+                    "matrixRows",
+                    "Every matrix row must contain text.");
+            }
+
+            if (columns.Any(column => string.IsNullOrWhiteSpace(column.Text)))
+            {
+                AddError(
+                    "matrixColumns",
+                    "Every matrix column must contain text.");
+            }
+
+            if (rows
+                .GroupBy(row => row.DisplayOrder)
+                .Any(group => group.Count() > 1))
+            {
+                AddError(
+                    "matrixRows",
+                    "Matrix row display orders must be unique.");
+            }
+
+            if (columns
+                .GroupBy(column => column.DisplayOrder)
+                .Any(group => group.Count() > 1))
+            {
+                AddError(
+                    "matrixColumns",
+                    "Matrix column display orders must be unique.");
+            }
+
+            if (answers.Count != rows.Count)
+            {
+                AddError(
+                    "matrixAnswers",
+                    "Every matrix row must have exactly one correct-column mapping.");
+            }
+
+            foreach (var answer in answers)
+            {
+                if (answer.RowIndex < 0 ||
+                    answer.RowIndex >= rows.Count)
+                {
+                    AddError(
+                        "matrixAnswers",
+                        "A matrix answer contains an invalid row index.");
+                }
+
+                if (answer.CorrectColumnIndex < 0 ||
+                    answer.CorrectColumnIndex >= columns.Count)
+                {
+                    AddError(
+                        "matrixAnswers",
+                        "A matrix answer contains an invalid correct-column index.");
+                }
+            }
+
+            if (answers
+                .GroupBy(answer => answer.RowIndex)
+                .Any(group => group.Count() > 1))
+            {
+                AddError(
+                    "matrixAnswers",
+                    "Each matrix row must have exactly one correct-column mapping.");
+            }
+
+            var mappedRows = answers
+                .Select(answer => answer.RowIndex)
+                .ToHashSet();
+
+            for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+            {
+                if (!mappedRows.Contains(rowIndex))
+                {
+                    AddError(
+                        "matrixAnswers",
+                        $"Matrix row {rowIndex} does not have a correct-column mapping.");
+                }
+            }
+        }
+        else
+        {
+            if (request.MatrixRows is { Count: > 0 } ||
+                request.MatrixColumns is { Count: > 0 } ||
+                request.MatrixAnswers is { Count: > 0 })
+            {
+                AddError(
+                    "matrixRows",
+                    "Matrix data can only be supplied for Matrix/Grid questions.");
             }
         }
 

@@ -35,6 +35,14 @@ public class CreateQuestionRequest
 
     public List<CreateQuestionRationaleOptionRequest> RationaleOptions
         { get; set; } = [];
+
+    public List<CreateQuestionMatrixRowRequest> MatrixRows { get; set; } = [];
+
+    public List<CreateQuestionMatrixColumnRequest> MatrixColumns { get; set; } = [];
+
+    public List<CreateQuestionMatrixAnswerRequest> MatrixAnswers { get; set; } = [];
+
+
 }
 
 public class CreateQuestionOptionRequest
@@ -55,4 +63,26 @@ public class CreateQuestionRationaleOptionRequest
     public int DisplayOrder { get; set; }
 
     public bool IsCorrect { get; set; }
+}
+
+
+public class CreateQuestionMatrixRowRequest
+{
+    public string Text { get; set; } = null!;
+
+    public int DisplayOrder { get; set; }
+}
+
+public class CreateQuestionMatrixColumnRequest
+{
+    public string Text { get; set; } = null!;
+
+    public int DisplayOrder { get; set; }
+}
+
+public class CreateQuestionMatrixAnswerRequest
+{
+    public int RowIndex { get; set; }
+
+    public int CorrectColumnIndex { get; set; }
 }

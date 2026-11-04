@@ -89,7 +89,9 @@ public class ExamSessionResponseService
                 SelectedOptionIds = request.SelectedOptionIds,
                 OrderedOptionIds = request.OrderedOptionIds,
                 NumericAnswer = request.NumericAnswer,
-                SelectedRationaleOptionIds = request.SelectedRationaleOptionIds
+                SelectedRationaleOptionIds = request.SelectedRationaleOptionIds,
+                MatrixAnswers = request.MatrixAnswers
+
             },
             question.Type);
 
@@ -100,11 +102,12 @@ public class ExamSessionResponseService
         }
 
         var response = await _db.ExamSessionResponses
-            .Include(r => r.SelectedRationaleOptions)
-            .FirstOrDefaultAsync(r =>
-                r.ExamSessionId == sessionId &&
-                r.QuestionId == request.QuestionId);
-
+    .Include(r => r.SelectedRationaleOptions)
+    .Include(r => r.SelectedOption)
+    .Include(r => r.MatrixAnswers)
+    .FirstOrDefaultAsync(r =>
+        r.ExamSessionId == sessionId &&
+        r.QuestionId == request.QuestionId);
         if (response is null)
         {
             response = new ExamSessionResponse
@@ -121,6 +124,50 @@ public class ExamSessionResponseService
             question.Type == QuestionType.NumericEntry
                 ? null
                 : request.SelectedOptionId;
+
+
+                // Replace previous option selections with the latest submission.
+response.SelectedOptions.Clear();
+
+if (question.Type == QuestionType.MultipleResponse ||
+    question.Type == QuestionType.OrderedResponse)
+{
+    for (var index = 0;
+         index < evaluation.SelectedOptionIds.Count;
+         index++)
+    {
+        var optionId = evaluation.SelectedOptionIds[index];
+
+        response.SelectedOptions.Add(
+            new ExamSessionResponseOption
+            {
+                ExamSessionResponseId = response.Id,
+                QuestionOptionId = optionId,
+                SelectedOrder =
+                    question.Type == QuestionType.OrderedResponse
+                        ? index + 1
+                        : null
+            });
+    }
+}
+
+// Replace previous MatrixGrid answers with the latest submission.
+response.MatrixAnswers.Clear();
+
+if (question.Type == QuestionType.MatrixGrid)
+{
+    foreach (var matrixAnswer in evaluation.MatrixAnswers)
+    {
+        response.MatrixAnswers.Add(
+            new ExamSessionMatrixAnswer
+            {
+                ExamSessionResponseId = response.Id,
+                QuestionId = question.Id,
+                MatrixRowId = matrixAnswer.MatrixRowId,
+                SelectedColumnId = matrixAnswer.SelectedColumnId
+            });
+    }
+}
 
         response.NumericAnswer =
             question.Type == QuestionType.NumericEntry
